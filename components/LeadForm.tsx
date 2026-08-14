@@ -31,7 +31,6 @@ export default function LeadForm() {
         package: String(data.get('package') || '').trim(),
         project: String(data.get('project') || '').trim(),
         source: 'newbernwebsites.com',
-        status: 'new',
         createdAt: serverTimestamp(),
       });
       form.reset();
