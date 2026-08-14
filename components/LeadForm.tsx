@@ -46,25 +46,48 @@ export default function LeadForm() {
   return (
     <form className="lead-form" onSubmit={handleSubmit}>
       <div className="form-row">
-        <input name="name" placeholder="Your name" required maxLength={100} />
-        <input name="business" placeholder="Business name" required maxLength={150} />
+        <label className="form-field">
+          <span>Your name <i aria-hidden="true">*</i></span>
+          <input autoComplete="name" name="name" placeholder="First and last name" required maxLength={100} />
+        </label>
+        <label className="form-field">
+          <span>Business name <i aria-hidden="true">*</i></span>
+          <input autoComplete="organization" name="business" placeholder="Business or organization" required maxLength={150} />
+        </label>
       </div>
       <div className="form-row">
-        <input type="email" name="email" placeholder="Email address" required maxLength={200} />
-        <input type="tel" name="phone" placeholder="Phone number" maxLength={30} />
+        <label className="form-field">
+          <span>Email address <i aria-hidden="true">*</i></span>
+          <input autoComplete="email" type="email" name="email" placeholder="you@business.com" required maxLength={200} />
+        </label>
+        <label className="form-field">
+          <span>Phone number</span>
+          <input autoComplete="tel" inputMode="tel" type="tel" name="phone" placeholder="(252) 555-0123" maxLength={30} />
+        </label>
       </div>
-      <select name="package" defaultValue="">
-        <option value="" disabled>What are you interested in?</option>
-        <option value="Turnkey Website - $2,500">Turnkey Website — $2,500</option>
-        <option value="Website + Professional Media - $3,500">Website + Professional Media — $3,500</option>
-        <option value="Custom Project">Custom Project</option>
-        <option value="Not Sure Yet">Not sure yet</option>
-      </select>
-      <textarea name="project" rows={5} placeholder="Tell us about your business and what you need." maxLength={3000} />
-      <button className="button primary full" disabled={status === 'sending'}>
+      <label className="form-field">
+        <span>Project type</span>
+        <select name="package" defaultValue="">
+          <option value="" disabled>What are you interested in?</option>
+          <option value="Turnkey Website - $2,500">Turnkey Website — $2,500</option>
+          <option value="Website + Professional Media - $3,500">Website + Professional Media — $3,500</option>
+          <option value="Custom Project">Custom Project</option>
+          <option value="Not Sure Yet">Not sure yet</option>
+        </select>
+      </label>
+      <label className="form-field">
+        <span>Tell us about your project</span>
+        <textarea name="project" rows={5} placeholder="A few details about your business and what you need…" maxLength={3000} />
+      </label>
+      <button
+        aria-busy={status === 'sending'}
+        className="button primary full"
+        disabled={status === 'sending'}
+        type="submit"
+      >
         {status === 'sending' ? 'Sending…' : 'Start Your Website'}
       </button>
-      {message && <p className={`form-status ${status}`}>{message}</p>}
+      {message && <p aria-live="polite" className={`form-status ${status}`} role="status">{message}</p>}
       <p className="form-note">No obligation. Tell us what you need and we’ll recommend the right path.</p>
     </form>
   );
