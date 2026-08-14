@@ -48,17 +48,17 @@ export default function LeadForm() {
       <div className="form-row">
         <label className="form-field">
           <span>Your name <i aria-hidden="true">*</i></span>
-          <input autoComplete="name" name="name" placeholder="First and last name" required maxLength={100} />
+          <input autoComplete="name" name="name" placeholder="Your name" required maxLength={100} />
         </label>
         <label className="form-field">
           <span>Business name <i aria-hidden="true">*</i></span>
-          <input autoComplete="organization" name="business" placeholder="Business or organization" required maxLength={150} />
+          <input autoComplete="organization" name="business" placeholder="Business name" required maxLength={150} />
         </label>
       </div>
       <div className="form-row">
         <label className="form-field">
           <span>Email address <i aria-hidden="true">*</i></span>
-          <input autoComplete="email" type="email" name="email" placeholder="you@business.com" required maxLength={200} />
+          <input autoComplete="email" type="email" name="email" placeholder="you@email.com" required maxLength={200} />
         </label>
         <label className="form-field">
           <span>Phone number</span>
