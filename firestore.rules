@@ -1,0 +1,20 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /websiteLeads/{leadId} {
+      allow create: if
+        request.resource.data.keys().hasOnly([
+          'name','business','email','phone','package','project','source','status','createdAt'
+        ]) &&
+        request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 100 &&
+        request.resource.data.business is string && request.resource.data.business.size() > 0 && request.resource.data.business.size() <= 150 &&
+        request.resource.data.email is string && request.resource.data.email.size() > 3 && request.resource.data.email.size() <= 200 &&
+        request.resource.data.phone is string && request.resource.data.phone.size() <= 30 &&
+        request.resource.data.package is string && request.resource.data.package.size() <= 100 &&
+        request.resource.data.project is string && request.resource.data.project.size() <= 3000 &&
+        request.resource.data.source == 'newbernwebsites.com' &&
+        request.resource.data.status == 'new';
+      allow read, update, delete: if false;
+    }
+  }
+}
