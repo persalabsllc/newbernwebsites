@@ -38,7 +38,7 @@ export default function MailAutomationPanel({ user }: { user: User }) {
         <div>
           <p className="crm-kicker" style={{ margin: 0 }}>AUTOMATION SETUP</p>
           <strong>Private Email connection</strong>
-          <p style={{ margin: '5px 0 0', color: '#637083' }}>Prospect outreach is locked off. These controls only verify the connection or email your own inbox.</p>
+          <p style={{ margin: '5px 0 0', color: '#637083' }}>Mail is connected. Prospect emails remain individually reviewed and approved while this new domain builds its sending reputation.</p>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button disabled={Boolean(busy)} onClick={() => run('verify')}>{busy === 'verify' ? 'Checking…' : 'Verify mail'}</button>
