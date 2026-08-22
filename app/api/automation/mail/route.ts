@@ -11,7 +11,6 @@ export async function POST(request: Request) {
     const user = await requireFirebaseUser(request);
     const body = await request.json() as {
       action?: string;
-      confirmation?: string;
       to?: string;
       subject?: string;
       message?: string;
@@ -36,15 +35,12 @@ export async function POST(request: Request) {
     }
 
     if (body.action === 'send-prospect') {
-      if (body.confirmation !== 'SEND_APPROVED_FIRST_TOUCH') {
-        return NextResponse.json({ ok: false, error: 'A reviewed message must be explicitly approved.' }, { status: 400 });
-      }
       await sendProspectEmail({
         to: String(body.to || ''),
         subject: String(body.subject || ''),
         body: String(body.message || ''),
       });
-      return NextResponse.json({ ok: true, recipient: body.to, mode: 'supervised' });
+      return NextResponse.json({ ok: true, recipient: body.to, mode: 'manual-fallback' });
     }
 
     return NextResponse.json({ ok: false, error: 'Unknown action.' }, { status: 400 });

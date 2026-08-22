@@ -344,9 +344,10 @@ export async function hasAutomationMarker(marker: string) {
   return result.ids.length > 0;
 }
 
-export async function readLatestUnseenFrom(email: string) {
+async function readLatestFromSearch(email: string, unseenOnly: boolean) {
   if (!validMailbox(email)) throw new Error('A valid sender email is required.');
-  const result = await imapExchange({ search: `UNSEEN FROM "${escapeImap(email)}"`, fetchLatest: true });
+  const prefix = unseenOnly ? 'UNSEEN ' : '';
+  const result = await imapExchange({ search: `${prefix}FROM "${escapeImap(email)}"`, fetchLatest: true });
   if (!result.raw) return null;
 
   const [rawHeaders = '', ...rawBodyParts] = result.raw.split(/\r?\n\r?\n/);
@@ -359,6 +360,14 @@ export async function readLatestUnseenFrom(email: string) {
   // Automated replies are only safe for plain-text messages. HTML or attachments
   // are escalated rather than interpreted loosely.
   return { uid: result.ids.at(-1) as number, subject, messageId, body, contentType };
+}
+
+export async function readLatestUnseenFrom(email: string) {
+  return readLatestFromSearch(email, true);
+}
+
+export async function readLatestFrom(email: string) {
+  return readLatestFromSearch(email, false);
 }
 
 export async function markMessageSeen(uid: number) {
