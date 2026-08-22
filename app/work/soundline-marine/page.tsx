@@ -1,0 +1,22 @@
+import type { Metadata } from 'next';
+import styles from '../concept-sites.module.css';
+
+export const metadata: Metadata = { title: 'Soundline Marine Construction | Concept by New Bern Websites', description: 'A marine construction website concept created by New Bern Websites.' };
+
+export default function SoundlineMarine() {
+  return <main className={`${styles.shell} ${styles.marine}`}>
+    <div className={styles.conceptBar}><span>Concept website created by New Bern Websites · Fictional business</span><a href="/#work">← Return to portfolio</a></div>
+    <header className={styles.nav}><a className={styles.brand} href="#top">SOUNDLINE <span>MARINE</span></a><nav><a href="#services">Services</a><a href="#projects">Projects</a><a href="#company">Company</a><a className={styles.cta} href="#contact">Request Site Visit</a></nav></header>
+    <section className={styles.hero} id="top"><div className={styles.heroInner}><p className={styles.eyebrow}>MARINE CONSTRUCTION · EASTERN NORTH CAROLINA</p><h1>Built to stand<br/>against the water.</h1><p>Docks, lifts, bulkheads, and waterfront structures engineered for coastal conditions and built by crews who know these waters.</p><div className={styles.actions}><a className={styles.button} href="#services">View Capabilities</a></div></div></section>
+    <section className={styles.stats}><div><strong>500+</strong><span>Projects Delivered</span></div><div><strong>28</strong><span>Years on the Coast</span></div><div><strong>7</strong><span>Counties Served</span></div><div><strong>NC</strong><span>Licensed & Insured</span></div></section>
+    <section className={styles.section} id="services"><div className={styles.sectionHead}><p className={styles.eyebrow}>CAPABILITIES</p><h2>Waterfront work without shortcuts.</h2><p>Residential and commercial marine construction planned for long service life, clean execution, and the realities of working on the Carolina coast.</p></div><div className={styles.cards}>
+      <article className={styles.card}><div className={styles.cardImage} style={{backgroundImage:'url(https://images.unsplash.com/photo-1499403474843-04e72c14df8a?auto=format&fit=crop&w=1200&q=85)'}}/><div className={styles.cardBody}><h3>Docks & Piers</h3><p>Fixed and floating systems designed around your shoreline, vessel, and water depth.</p></div></article>
+      <article className={styles.card}><div className={styles.cardImage} style={{backgroundImage:'url(https://images.unsplash.com/photo-1540946485063-a40da27545f8?auto=format&fit=crop&w=1200&q=85)'}}/><div className={styles.cardBody}><h3>Boat Lifts</h3><p>Dependable lift installation, electrical coordination, service, and replacement.</p></div></article>
+      <article className={styles.card}><div className={styles.cardImage} style={{backgroundImage:'url(https://images.unsplash.com/photo-1528150177508-7cc0c36cda5c?auto=format&fit=crop&w=1200&q=85)'}}/><div className={styles.cardBody}><h3>Bulkheads</h3><p>Shoreline stabilization and retaining systems built for your site conditions.</p></div></article>
+    </div></section>
+    <section className={styles.split} id="projects"><div className={styles.splitCopy}><p className={styles.eyebrow}>FROM PERMITS TO PUNCH LIST</p><h2>One accountable marine contractor.</h2><p>Our team handles site evaluation, design coordination, permitting, mobilization, construction, and final inspection. The result is a cleaner jobsite and a project that keeps moving.</p><ul className={styles.list}><li>Residential docks and boathouses</li><li>Commercial marina improvements</li><li>Wave and shoreline protection</li><li>Repairs, inspections, and storm recovery</li></ul></div><div className={styles.splitImage} style={{backgroundImage:'url(https://images.unsplash.com/photo-1544550285-f813152fb2fd?auto=format&fit=crop&w=1400&q=85)'}}/></section>
+    <section className={styles.quote} id="company"><blockquote>WE BUILD WHERE LAND ENDS—WITH THE EQUIPMENT, EXPERIENCE, AND DISCIPLINE THE JOB DEMANDS.</blockquote><p>SOUNDLINE MARINE CONSTRUCTION</p></section>
+    <section className={styles.contact} id="contact"><div><p className={styles.eyebrow}>START WITH A SITE VISIT</p><h2>Tell us what you need built, repaired, or protected.</h2></div><a className={styles.button} href="/#contact">Request an Estimate</a></section>
+    <footer className={styles.footer}><span>Soundline Marine Construction · Serving Eastern North Carolina</span><span>Concept build · Not a real business</span></footer>
+  </main>;
+}

@@ -1,0 +1,22 @@
+import type { Metadata } from 'next';
+import styles from '../concept-sites.module.css';
+
+export const metadata: Metadata = { title: 'Juniper Tide Pools & Outdoor Living | Concept by New Bern Websites', description: 'A pool and outdoor living website concept created by New Bern Websites.' };
+
+export default function JuniperTidePools() {
+  return <main className={`${styles.shell} ${styles.pool}`}>
+    <div className={styles.conceptBar}><span>Concept website created by New Bern Websites · Fictional business</span><a href="/#work">← Return to portfolio</a></div>
+    <header className={styles.nav}><a className={styles.brand} href="#top">JUNIPER TIDE <span>POOLS & OUTDOOR LIVING</span></a><nav><a href="#spaces">Our Work</a><a href="#process">Process</a><a href="#studio">Studio</a><a className={styles.cta} href="#contact">Plan Your Space</a></nav></header>
+    <section className={styles.hero} id="top"><div className={styles.heroInner}><p className={styles.eyebrow}>CUSTOM POOLS · COMPLETE OUTDOOR SPACES</p><h1>Live beautifully,<br/>outside.</h1><p>Custom pools and outdoor rooms designed as one complete setting—calm, considered, and made for the way you gather.</p><div className={styles.actions}><a className={styles.button} href="#spaces">View Outdoor Spaces</a></div></div></section>
+    <section className={styles.stats}><div><strong>Design</strong><span>In-House Planning</span></div><div><strong>Build</strong><span>One Project Team</span></div><div><strong>Style</strong><span>Made for Your Home</span></div><div><strong>Care</strong><span>After-Launch Support</span></div></section>
+    <section className={styles.section} id="spaces"><div className={styles.sectionHead}><p className={styles.eyebrow}>FEATURED SPACES</p><h2>More than a pool. A place to be.</h2><p>We balance water, architecture, planting, shade, and light to make the entire backyard feel intentional.</p></div><div className={styles.cards}>
+      <article className={styles.card}><div className={styles.cardImage} style={{backgroundImage:'url(https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=1200&q=85)'}}/><div className={styles.cardBody}><h3>River Glass</h3><p>A quiet geometric pool with a sun shelf, limestone surround, and layered native planting.</p></div></article>
+      <article className={styles.card}><div className={styles.cardImage} style={{backgroundImage:'url(https://images.unsplash.com/photo-1572331165267-854da2b10ccc?auto=format&fit=crop&w=1200&q=85)'}}/><div className={styles.cardBody}><h3>Garden House</h3><p>A family retreat combining water, fire, an outdoor kitchen, and comfortable shade.</p></div></article>
+      <article className={styles.card}><div className={styles.cardImage} style={{backgroundImage:'url(https://images.unsplash.com/photo-1596178065887-1198b6148b2b?auto=format&fit=crop&w=1200&q=85)'}}/><div className={styles.cardBody}><h3>Sound View</h3><p>An elevated coastal pool designed to preserve the horizon and withstand the elements.</p></div></article>
+    </div></section>
+    <section className={styles.split} id="process"><div className={styles.splitImage} style={{backgroundImage:'url(https://images.unsplash.com/photo-1575429198097-0414ec08e8cd?auto=format&fit=crop&w=1400&q=85)'}}/><div className={styles.splitCopy}><p className={styles.eyebrow}>DESIGN + BUILD</p><h2>One vision from the first conversation to the first swim.</h2><p>Our studio develops your pool, hardscape, structures, lighting, and landscape together. Then our construction team brings that single vision to life.</p><ul className={styles.list}><li>Property and lifestyle consultation</li><li>3D design and material selections</li><li>Permitting and construction management</li><li>Orientation and ongoing care options</li></ul></div></section>
+    <section className={styles.quote} id="studio"><blockquote>“The whole backyard finally feels connected to the house—and we use it nearly every evening.”</blockquote><p>THE PARKER FAMILY · NEW BERN</p></section>
+    <section className={styles.contact} id="contact"><div><p className={styles.eyebrow}>IMAGINE YOUR OUTDOOR SPACE</p><h2>Let’s design somewhere worth staying awhile.</h2></div><a className={styles.button} href="/#contact">Begin Your Project</a></section>
+    <footer className={styles.footer}><span>Juniper Tide Pools & Outdoor Living · Coastal North Carolina</span><span>Concept build · Not a real business</span></footer>
+  </main>;
+}

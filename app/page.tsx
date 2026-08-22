@@ -158,6 +158,7 @@ export default function Home() {
           <a href="#top">Home</a>
           <a href="#services">Services</a>
           <a href="#pricing">Packages</a>
+          <a href="#work">Our Work</a>
           <a href="#process">Process</a>
           <a href="#contact">Contact</a>
           <a className="nav-cta" href="#contact">Free Website Audit <span aria-hidden="true">→</span></a>
@@ -235,6 +236,29 @@ export default function Home() {
           <div><span>$2,500 →</span><strong>2 × $1,250</strong></div>
           <div><span>$3,500 →</span><strong>2 × $1,750</strong></div>
         </div>
+      </section>
+
+      <section className="portfolio" id="work">
+        <div className="section-title">
+          <p className="eyebrow">DESIGNED TO FIT THE BUSINESS.</p>
+          <h2>Three Industries. <em>Three Distinct Websites.</em></h2>
+          <p>Explore full concept builds showing how we adapt the design, message, and customer journey to each business—not just swap colors in a template.</p>
+        </div>
+        <div className="portfolio-grid">
+          <a className="portfolio-card" href="/work/calico-creek-homes">
+            <span className="portfolio-image homes" />
+            <span className="portfolio-copy"><small>CUSTOM HOME BUILDER · CONCEPT</small><strong>Calico Creek Custom Homes</strong><i>Explore the website →</i></span>
+          </a>
+          <a className="portfolio-card" href="/work/soundline-marine">
+            <span className="portfolio-image marine" />
+            <span className="portfolio-copy"><small>MARINE CONSTRUCTION · CONCEPT</small><strong>Soundline Marine Construction</strong><i>Explore the website →</i></span>
+          </a>
+          <a className="portfolio-card" href="/work/juniper-tide-pools">
+            <span className="portfolio-image pools" />
+            <span className="portfolio-copy"><small>POOLS & OUTDOOR LIVING · CONCEPT</small><strong>Juniper Tide Pools</strong><i>Explore the website →</i></span>
+          </a>
+        </div>
+        <p className="portfolio-note">These are fictional concept businesses created to demonstrate our design range. Client launches will be added here as they go live.</p>
       </section>
 
       <section className="process-contact" id="process">

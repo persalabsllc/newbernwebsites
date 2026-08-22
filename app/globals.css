@@ -921,6 +921,46 @@ a {
   color: white;
 }
 
+.portfolio {
+  padding: 78px 5vw 84px;
+  background:
+    radial-gradient(circle at 12% 15%, rgba(217,163,42,.12), transparent 27%),
+    linear-gradient(180deg, #f8f5ed, #eee8db);
+}
+
+.portfolio-grid {
+  display: grid;
+  max-width: 1180px;
+  margin: auto;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.portfolio-card {
+  overflow: hidden;
+  border: 1px solid rgba(6,44,76,.14);
+  border-radius: var(--radius-lg);
+  background: white;
+  box-shadow: var(--shadow-md);
+  color: var(--navy);
+  text-decoration: none;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.portfolio-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-lg); }
+.portfolio-image { display: block; min-height: 275px; background-position: center; background-size: cover; }
+.portfolio-image.homes { background-image: linear-gradient(0deg,rgba(4,30,53,.25),transparent),url("https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1000&q=84"); }
+.portfolio-image.marine { background-image: linear-gradient(0deg,rgba(4,30,53,.38),transparent),url("https://images.unsplash.com/photo-1504222490345-c075b6008014?auto=format&fit=crop&w=1000&q=84"); }
+.portfolio-image.pools { background-image: linear-gradient(0deg,rgba(4,30,53,.25),transparent),url("https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?auto=format&fit=crop&w=1000&q=84"); }
+.portfolio-copy { display: grid; padding: 24px; gap: 7px; }
+.portfolio-copy small { color: var(--gold-deep); font-size: 9px; font-weight: 900; letter-spacing: .13em; }
+.portfolio-copy strong { font: 700 23px/1.15 var(--font-serif); }
+.portfolio-copy i { margin-top: 6px; color: var(--muted); font-size: 11px; font-style: normal; font-weight: 800; }
+.portfolio-note { max-width: 900px; margin: 24px auto 0; color: var(--muted); font-size: 10px; line-height: 1.6; text-align: center; }
+
+@media (max-width: 850px) { .portfolio-grid { grid-template-columns: 1fr; } .portfolio-image { min-height: 330px; } }
+@media (max-width: 520px) { .portfolio { padding: 60px 5vw 65px; } .portfolio-image { min-height: 235px; } }
+
 .payment-bar > div {
   display: flex;
   align-items: center;
