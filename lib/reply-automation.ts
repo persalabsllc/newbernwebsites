@@ -36,6 +36,7 @@ export function classifyReply(input: {
   subject: string;
   messageId?: string;
   rawBody: string;
+  auditUrl?: string;
 }): ReplyAction {
   const text = decodeBody(input.rawBody);
   const marker = responseMarker(input.leadKey, input.messageId, text);
@@ -49,13 +50,31 @@ export function classifyReply(input: {
     return { kind: 'escalate', marker, reason: 'The reply asks for non-standard terms or contains a sensitive issue.' };
   }
 
+  if (/\b(send it|send (?:me )?(?:the )?(?:audit|review|link)|audit|website review|show me|let me see)\b/i.test(text) && input.auditUrl) {
+    return {
+      kind: 'reply',
+      subject,
+      marker,
+      body: [
+        `Absolutely—here is the private website review I prepared for ${input.business}:`,
+        input.auditUrl,
+        '',
+        'It takes about a minute to read. If you would like to talk through it, the page includes a direct 15-minute scheduling option.',
+        signature,
+      ].join('\r\n'),
+    };
+  }
+
   if (/\b(call|phone|meeting|meet|schedule|appointment|come by|visit)\b/i.test(text)) {
     return {
       kind: 'reply',
       subject,
       marker,
       body: [
-        `Thanks for getting back to me. I’d be glad to coordinate a quick conversation. What is the best phone number to use, and what two time windows work well for you?`,
+        `Thanks for getting back to me. I’d be glad to coordinate a quick conversation. You can request a 15-minute time here:`,
+        `https://www.newbernwebsites.com/schedule?business=${encodeURIComponent(input.business)}&source=email-reply`,
+        '',
+        'Or reply with the best phone number and two time windows that work well for you.',
         signature,
       ].join('\r\n'),
       alertOwner: `${input.business} asked for a call or meeting. The automation requested their best number and two available time windows.`,
@@ -103,6 +122,8 @@ export function classifyReply(input: {
         '• Both packages include 30 days of Captain 97.1 local business underwriting acknowledgments at no additional charge.',
         '',
         'Once we have the complete intake, the staging target is within 21 days. Which option sounds closer to what you need?',
+        '',
+        `If a quick conversation is easier: https://www.newbernwebsites.com/schedule?business=${encodeURIComponent(input.business)}&source=email-pricing`,
         signature,
       ].join('\r\n'),
     };

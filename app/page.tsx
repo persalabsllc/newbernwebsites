@@ -161,7 +161,7 @@ export default function Home() {
           <a href="#work">Our Work</a>
           <a href="#process">Process</a>
           <a href="#contact">Contact</a>
-          <a className="nav-cta" href="#contact">Free Website Audit <span aria-hidden="true">→</span></a>
+          <a className="nav-cta" href="/schedule?source=homepage-nav">Schedule 15 Minutes <span aria-hidden="true">→</span></a>
         </nav>
       </header>
 
@@ -173,7 +173,7 @@ export default function Home() {
           <p className="lead">Beautiful, high-performance websites for local businesses — with the domain, hosting, design, development and launch handled for you.</p>
           <div className="actions">
             <a className="button gold" href="#contact">Get a Free Website Audit <span aria-hidden="true">→</span></a>
-            <a className="button outline-light" href="#pricing">See Packages</a>
+            <a className="button outline-light" href="/schedule?source=homepage-hero">Schedule 15 Minutes</a>
           </div>
           <p className="micro"><strong>50% to start.</strong> Final 50% before launch. Captain 97.1 underwriting included.</p>
         </div>
@@ -212,7 +212,7 @@ export default function Home() {
                 <strong className="monthly">{item.deposit}</strong>
                 <span className="balance-copy">{item.balance}</span>
                 <ul>{item.items.map(listItem => <li key={listItem}><Icon name="check" />{listItem}</li>)}</ul>
-                <a className="button package-button" href="#contact">Get Started <span aria-hidden="true">→</span></a>
+                <a className="button package-button" href={`/schedule?source=${item.featured ? 'media-package' : 'turnkey-package'}`}>Discuss This Package <span aria-hidden="true">→</span></a>
               </article>
             ))}
           </div>
@@ -245,9 +245,9 @@ export default function Home() {
           <p>Explore a live production website and three full concept builds showing how we adapt the design, message, and customer journey to each business—not just swap colors in a template.</p>
         </div>
         <div className="portfolio-grid">
-          <a className="portfolio-card" href="https://www.captain97.com/" target="_blank" rel="noreferrer">
+          <a className="portfolio-card" href="/work/captain-97">
             <span className="portfolio-image captain"><b>CAPTAIN <em>97.1</em></b><i>CAROLINA&apos;S DOCK ROCK</i></span>
-            <span className="portfolio-copy"><small>RADIO & MEDIA · LIVE WEBSITE</small><strong>Captain 97.1</strong><i>Visit the live website ↗</i></span>
+            <span className="portfolio-copy"><small>RADIO & MEDIA · LIVE WEBSITE</small><strong>Captain 97.1</strong><i>View the case study →</i></span>
           </a>
           <a className="portfolio-card" href="/work/calico-creek-homes">
             <span className="portfolio-image homes" />
@@ -263,6 +263,14 @@ export default function Home() {
           </a>
         </div>
         <p className="portfolio-note">Captain97.com is a live production website. The other three are fictional concept businesses created to demonstrate our design range.</p>
+      </section>
+
+      <section className="service-area-section">
+        <div className="section-title"><p className="eyebrow">SERVING EASTERN NORTH CAROLINA</p><h2>Local knowledge. <em>Broader reach.</em></h2><p>Focused website services for the communities and industries where Eastern North Carolina businesses compete.</p></div>
+        <div className="service-area-layout">
+          <div><strong>BY COMMUNITY</strong><nav>{[['new-bern','New Bern'],['kinston','Kinston'],['havelock','Havelock'],['morehead-city','Morehead City'],['jacksonville','Jacksonville'],['greenville','Greenville'],['washington','Washington'],['goldsboro','Goldsboro']].map(([slug,label]) => <a key={slug} href={`/web-design/${slug}`}>{label}<span>→</span></a>)}</nav></div>
+          <div><strong>BY INDUSTRY</strong><nav>{[['contractors','Contractors'],['marine-businesses','Marine Businesses'],['home-builders','Home Builders'],['restaurants','Restaurants & Hospitality']].map(([slug,label]) => <a key={slug} href={`/web-design/${slug}`}>{label}<span>→</span></a>)}</nav></div>
+        </div>
       </section>
 
       <section className="process-contact" id="process">
@@ -311,7 +319,7 @@ export default function Home() {
           <h2>Let’s build something great.</h2>
           <p>Your website. Our expertise. A stronger New Bern.</p>
         </div>
-        <a href="#contact" className="button gold">Get a Free Website Audit <span aria-hidden="true">→</span></a>
+        <a href="/schedule?source=homepage-footer" className="button gold">Schedule 15 Minutes <span aria-hidden="true">→</span></a>
       </section>
 
       <footer>

@@ -42,7 +42,7 @@ export default function MailAutomationPanel({ user }: { user: User }) {
         <div>
           <p className="crm-kicker" style={{ margin: 0 }}>LIVE AUTOMATION</p>
           <strong>Email autopilot</strong>
-          <p style={{ margin: '5px 0 0', color: '#637083' }}>A fast ramp of 15, 25, 35, then 50 personalized first touches per weekday across a 75-mile New Bern service radius, with follow-ups on days 4, 9, and 14.</p>
+          <p style={{ margin: '5px 0 0', color: '#637083' }}>A daily 75-mile research run verifies public business websites and email addresses, then the outreach ramp releases 15, 25, 35, and 50 personalized first touches per weekday with follow-ups on days 4, 9, and 14.</p>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button disabled={Boolean(busy)} onClick={() => run('verify')}>{busy === 'verify' ? 'Checking…' : 'Check connection'}</button>
@@ -57,8 +57,8 @@ export default function MailAutomationPanel({ user }: { user: User }) {
       <details className="background-details">
         <summary>What runs silently—and what still needs you</summary>
         <div className="background-grid">
-          <div><strong>Runs silently</strong><ul><li>Five new first touches are released each hour until the current weekday allowance is reached.</li><li>Replies are checked hourly from 8 AM to 8 PM Eastern on weekdays; only verified thread replies enter routine automation.</li><li>Safe opt-outs, pricing information, and the correct kickoff payment link are handled automatically.</li><li>Manual prospects join the same queue without an approval step.</li></ul></div>
-          <div><strong>Does not run silently</strong><ul><li>Ambiguous, legal, discount, complaint, attachment, or unusual replies are escalated to your inbox.</li><li>Meetings, phone calls, personalized video audits, project delivery, and payment disputes still need you.</li><li>One-off emails send only when you click Send and do not receive automated follow-ups.</li></ul></div>
+          <div><strong>Runs silently</strong><ul><li>Each weekday morning, the research engine scans eligible local-business listings within 75 miles, visits the public website, verifies a displayed business email, and creates three audit findings.</li><li>Five new first touches are released each hour until the current weekday allowance is reached.</li><li>Replies are checked hourly from 8 AM to 8 PM Eastern on weekdays; “send it” receives the correct private audit automatically.</li><li>Safe opt-outs, pricing information, scheduling links, and the correct kickoff payment link are handled automatically.</li></ul></div>
+          <div><strong>Does not run silently</strong><ul><li>Ambiguous, legal, discount, complaint, attachment, or unusual replies are escalated to your inbox.</li><li>Requested appointments still need your final confirmation; calls, project delivery, and payment disputes still need you.</li><li>One-off emails send only when you click Send and do not receive automated follow-ups.</li></ul></div>
         </div>
       </details>
     </section>

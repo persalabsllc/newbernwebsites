@@ -4,6 +4,7 @@ import { readAutomationMessages, readInboundMessages } from '../../../../lib/mai
 import { currentFirstTouchLimit } from '../../../../lib/outreach-autopilot';
 import { buildManualProspect, getAllProspects, saveManualProspect, type StoredOutreachLead } from '../../../../lib/prospect-store';
 import { classifyReply } from '../../../../lib/reply-automation';
+import { auditPath } from '../../../../lib/prospect-utils';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -68,6 +69,7 @@ function prospectState(
         subject: inbound.subject,
         messageId: inbound.messageId,
         rawBody: inbound.body,
+        auditUrl: `https://www.newbernwebsites.com${auditPath(lead)}`,
       });
 
       if (action.kind === 'opt-out') {
@@ -110,6 +112,7 @@ function prospectState(
     addedManually: Boolean(lead.addedManually),
     addedAt: lead.addedAt || '',
     subject: lead.subject,
+    auditUrl: auditPath(lead),
     queuePosition: index + 1,
     scheduledBatch: Math.floor(index / firstTouchLimit) + 1,
     sent,

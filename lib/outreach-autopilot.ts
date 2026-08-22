@@ -10,6 +10,7 @@ import {
 } from './mail-server';
 import { getAllProspects, type StoredOutreachLead } from './prospect-store';
 import { classifyReply, type ReplyAction } from './reply-automation';
+import { auditPath } from './prospect-utils';
 
 const FOLLOW_UP_LIMIT = 30;
 const FIRST_TOUCH_BATCH_SIZE = 5;
@@ -129,6 +130,15 @@ function greeting(lead: StoredOutreachLead) {
   return `Hi ${lead.business} team,`;
 }
 
+function withAuditInvitation(lead: StoredOutreachLead) {
+  if (/private audit/i.test(lead.body)) return lead.body;
+  const invitation = `I also prepared a short private website audit for ${lead.business}. If you would like the link, reply “send it” and I’ll send it over—no meeting required.`;
+  const signature = /\r?\n\r?\nKyle\r?\nNew Bern Websites\s*$/;
+  return signature.test(lead.body)
+    ? lead.body.replace(signature, `\r\n\r\n${invitation}\r\n\r\nKyle\r\nNew Bern Websites`)
+    : `${lead.body.trim()}\r\n\r\n${invitation}\r\n\r\nKyle\r\nNew Bern Websites`;
+}
+
 function followUpCopy(lead: StoredOutreachLead, step: 1 | 2 | 3) {
   if (step === 1) {
     return [
@@ -138,7 +148,7 @@ function followUpCopy(lead: StoredOutreachLead, step: 1 | 2 | 3) {
       '',
       lead.observation,
       '',
-      "If you want, I can send the three changes I'd prioritize. No meeting is needed.",
+      'I have the short private audit ready. Reply “send it” and I’ll send the link—no meeting is needed.',
       '',
       'Kyle',
       'New Bern Websites',
@@ -224,6 +234,7 @@ function evaluateMessages(lead: StoredOutreachLead, messages: InboundMessage[], 
       subject: message.subject,
       messageId: message.messageId,
       rawBody: message.body,
+      auditUrl: `https://www.newbernwebsites.com${auditPath(lead)}`,
     });
     if (action.kind === 'opt-out') return { message, action };
     if (!threadCorrelated(message, outboundIds)) return { message, action, issue: 'uncorrelated' };
@@ -331,7 +342,7 @@ export async function sendNextFirstTouches(snapshot: OutreachSnapshot, runSuppre
   for (const lead of snapshot.prospects) {
     const marker = `outreach:${lead.key}`;
     if (sentMarkers.has(marker) || suppressedMarkers.has(`suppressed:${lead.key}`) || runSuppressions.has(lead.key)) continue;
-    await sendQueuedProspectEmail({ ...lead, to: lead.email, marker });
+    await sendQueuedProspectEmail({ ...lead, body: withAuditInvitation(lead), to: lead.email, marker });
     sentMarkers.set(marker, { marker } as AutomationMessage);
     sent.push(lead.key);
     if (sent.length >= runLimit) break;

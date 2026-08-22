@@ -11,6 +11,7 @@ type Prospect = {
   observation: string;
   recommendedPackage: string;
   subject: string;
+  auditUrl: string;
   queuePosition: number;
   scheduledBatch: number;
   sent: boolean;
@@ -48,6 +49,8 @@ export default function ProspectPipeline({ user }: { user: User }) {
   const [filter, setFilter] = useState('All');
   const [adding, setAdding] = useState(false);
   const [addStatus, setAddStatus] = useState('');
+  const [researching, setResearching] = useState(false);
+  const [researchStatus, setResearchStatus] = useState('');
 
   async function load() {
     setLoading(true);
@@ -89,6 +92,26 @@ export default function ProspectPipeline({ user }: { user: User }) {
       setAddStatus(error instanceof Error ? error.message : 'Could not add prospect.');
     } finally {
       setAdding(false);
+    }
+  }
+
+  async function runResearch() {
+    setResearching(true);
+    setResearchStatus('Scanning public business listings and verifying websites, public email addresses, and specific audit findings…');
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch('/api/automation/research', {
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}` },
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Research run failed.');
+      setResearchStatus(`Research complete: ${payload.result.saved} verified prospects added after checking ${payload.result.checked} candidate websites.`);
+      await load();
+    } catch (error) {
+      setResearchStatus(error instanceof Error ? error.message : 'Research run failed.');
+    } finally {
+      setResearching(false);
     }
   }
 
@@ -136,8 +159,9 @@ export default function ProspectPipeline({ user }: { user: User }) {
         <h2>Prospect Pipeline</h2>
         <p>Verified businesses across New Bern and the surrounding 75-mile Eastern North Carolina market. The weekday allowance ramps 15 → 25 → 35 → 50, sent in five-message hourly batches.</p>
       </div>
-      <button onClick={() => void load()} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh status'}</button>
+      <div className="pipeline-actions"><button onClick={() => void runResearch()} disabled={researching}>{researching ? 'Researching…' : 'Run 75-mile research'}</button><button onClick={() => void load()} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh status'}</button></div>
     </div>
+    {researchStatus && <p className={`form-status ${/failed|could not|returned/i.test(researchStatus) ? 'error' : 'sent'}`}>{researchStatus}</p>}
 
     <div className="pipeline-stats">
       <article><span>Identified</span><strong>{prospects.length}</strong></article>
@@ -164,6 +188,7 @@ export default function ProspectPipeline({ user }: { user: User }) {
             <span>{prospect.recommendedPackage}</span>
             {prospect.addedManually && <small>Manually added{prospect.contactPerson ? ` · ${prospect.contactPerson}` : ''}</small>}
             <a href={prospect.sourceUrl} target="_blank" rel="noreferrer">Public source ↗</a>
+            <a href={prospect.auditUrl} target="_blank" rel="noreferrer">Private audit ↗</a>
           </td>
           <td><p>{prospect.observation}</p></td>
           <td>

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { OUTREACH_QUEUE, type OutreachLead } from './outreach-queue';
 import { readStoredProspectRecords, storeProspectRecord } from './mail-server';
+import { auditKey, defaultAuditFindings, type AuditFinding } from './prospect-utils';
 
 export type ManualProspectInput = {
   business: string;
@@ -15,6 +16,10 @@ export type StoredOutreachLead = OutreachLead & {
   contactPerson?: string;
   addedManually?: boolean;
   addedAt?: string;
+  researchedAutomatically?: boolean;
+  location?: string;
+  category?: string;
+  auditFindings?: AuditFinding[];
 };
 
 function clean(value: string, max: number) {
@@ -67,6 +72,7 @@ export function buildManualProspect(input: ManualProspectInput): StoredOutreachL
     ].join('\r\n'),
     addedManually: true,
     addedAt: new Date().toISOString(),
+    auditFindings: defaultAuditFindings(`The current site has an opportunity to make ${business}'s strongest services and next step clearer for local customers.`),
   };
   return lead;
 }
@@ -102,4 +108,11 @@ export async function getAllProspects(): Promise<StoredOutreachLead[]> {
     seen.add(email);
     return true;
   });
+}
+
+export async function getProspectByAuditKey(value: string) {
+  const builtIn = OUTREACH_QUEUE.find(lead => auditKey(lead) === value);
+  if (builtIn) return builtIn as StoredOutreachLead;
+  const manual = await getManualProspects();
+  return manual.find(lead => auditKey(lead) === value);
 }

@@ -11,6 +11,7 @@ const PACKAGES = new Set([
   'Website + Professional Media - $3,500',
   'Custom Project',
   'Not Sure Yet',
+  'Schedule a 15-minute call',
 ]);
 const requestLog = new Map<string, number[]>();
 

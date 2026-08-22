@@ -40,6 +40,17 @@ function decodeRecord(body: string) {
 }
 
 function acknowledgementCopy(lead: InboundLead) {
+  if (lead.package === 'Schedule a 15-minute call') return [
+    `Hi ${firstName(lead.name)},`,
+    '',
+    'I received your request for a 15-minute website conversation. I’ll review the preferred time and details you sent, then confirm directly from this email address.',
+    '',
+    'If you have a current website, you can reply with its address so I can review it before we speak.',
+    '',
+    'Kyle',
+    'New Bern Websites',
+    '252-515-4389',
+  ].join('\r\n');
   const intro = lead.package === 'Free Website Audit'
     ? 'I received your request for a free website audit.'
     : `I received your inquiry about our ${lead.package}.`;
@@ -55,6 +66,8 @@ function acknowledgementCopy(lead: InboundLead) {
     `${intro} ${next}`,
     '',
     'If you already have a website, reply with its address. I’ll review it before I follow up so the conversation is useful from the start.',
+    '',
+    'If you prefer, request a 15-minute time here: https://www.newbernwebsites.com/schedule?source=inbound-confirmation',
     '',
     'Kyle',
     'New Bern Websites',
@@ -152,6 +165,7 @@ export async function processInboundLeadFollowUps() {
   const activity: string[] = [];
 
   for (const lead of records) {
+    if (lead.package === 'Schedule a 15-minute call') continue;
     const createdAt = Date.parse(lead.createdAt);
     if (!Number.isFinite(createdAt)) continue;
     const replied = inbound.some(message => message.from === lead.email && messageTime(message.date) >= createdAt);
