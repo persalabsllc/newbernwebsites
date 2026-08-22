@@ -241,10 +241,14 @@ export default function Home() {
       <section className="portfolio" id="work">
         <div className="section-title">
           <p className="eyebrow">DESIGNED TO FIT THE BUSINESS.</p>
-          <h2>Three Industries. <em>Three Distinct Websites.</em></h2>
-          <p>Explore full concept builds showing how we adapt the design, message, and customer journey to each business—not just swap colors in a template.</p>
+          <h2>Four Distinct Websites. <em>One Flexible Studio.</em></h2>
+          <p>Explore a live production website and three full concept builds showing how we adapt the design, message, and customer journey to each business—not just swap colors in a template.</p>
         </div>
         <div className="portfolio-grid">
+          <a className="portfolio-card" href="https://www.captain97.com/" target="_blank" rel="noreferrer">
+            <span className="portfolio-image captain"><b>CAPTAIN <em>97.1</em></b><i>CAROLINA&apos;S DOCK ROCK</i></span>
+            <span className="portfolio-copy"><small>RADIO & MEDIA · LIVE WEBSITE</small><strong>Captain 97.1</strong><i>Visit the live website ↗</i></span>
+          </a>
           <a className="portfolio-card" href="/work/calico-creek-homes">
             <span className="portfolio-image homes" />
             <span className="portfolio-copy"><small>CUSTOM HOME BUILDER · CONCEPT</small><strong>Calico Creek Custom Homes</strong><i>Explore the website →</i></span>
@@ -258,7 +262,7 @@ export default function Home() {
             <span className="portfolio-copy"><small>POOLS & OUTDOOR LIVING · CONCEPT</small><strong>Juniper Tide Pools</strong><i>Explore the website →</i></span>
           </a>
         </div>
-        <p className="portfolio-note">These are fictional concept businesses created to demonstrate our design range. Client launches will be added here as they go live.</p>
+        <p className="portfolio-note">Captain97.com is a live production website. The other three are fictional concept businesses created to demonstrate our design range.</p>
       </section>
 
       <section className="process-contact" id="process">

@@ -932,7 +932,7 @@ a {
   display: grid;
   max-width: 1180px;
   margin: auto;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 20px;
 }
 
@@ -950,8 +950,12 @@ a {
 .portfolio-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-lg); }
 .portfolio-image { display: block; min-height: 275px; background-position: center; background-size: cover; }
 .portfolio-image.homes { background-image: linear-gradient(0deg,rgba(4,30,53,.25),transparent),url("https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1000&q=84"); }
-.portfolio-image.marine { background-image: linear-gradient(0deg,rgba(4,30,53,.38),transparent),url("https://unsplash.com/photos/gfZdTHnYcKY/download?force=true&w=1200"); }
+.portfolio-image.marine { background-image: linear-gradient(0deg,rgba(4,30,53,.38),transparent),url("https://images.pexels.com/photos/5526824/pexels-photo-5526824.jpeg?auto=compress&cs=tinysrgb&w=1200"); }
 .portfolio-image.pools { background-image: linear-gradient(0deg,rgba(4,30,53,.25),transparent),url("https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?auto=format&fit=crop&w=1000&q=84"); }
+.portfolio-image.captain { display: grid; place-content: center; gap: 8px; background: radial-gradient(circle at 22% 12%, rgba(255,255,255,.12), transparent 28%), linear-gradient(145deg,#061f35,#0b4d7c 56%,#0e6388); color: white; text-align: center; }
+.portfolio-image.captain b { font: 900 clamp(36px,5vw,65px)/.9 var(--font-serif); letter-spacing: -.04em; }
+.portfolio-image.captain b em { display: block; color: var(--gold-soft); font-style: normal; }
+.portfolio-image.captain > i { color: #cfe0e8; font-size: 10px; font-style: normal; font-weight: 900; letter-spacing: .25em; }
 .portfolio-copy { display: grid; padding: 24px; gap: 7px; }
 .portfolio-copy small { color: var(--gold-deep); font-size: 9px; font-weight: 900; letter-spacing: .13em; }
 .portfolio-copy strong { font: 700 23px/1.15 var(--font-serif); }
