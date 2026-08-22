@@ -83,7 +83,16 @@ function dotStuff(value: string) {
   return value.replace(/^\./gm, '..');
 }
 
-async function sendPlainText(to: string, subject: string, body: string, purpose: 'self-test' | 'outreach') {
+type SendPurpose = 'self-test' | 'outreach' | 'reply' | 'internal';
+
+type SendOptions = {
+  purpose: SendPurpose;
+  marker?: string;
+  copyToSelf?: boolean;
+  replyToMessageId?: string;
+};
+
+async function sendPlainText(to: string, subject: string, body: string, options: SendOptions) {
   const config = settings();
   if (!validMailbox(to)) throw new Error('A valid recipient email is required.');
   if (!subject.trim() || subject.length > 120) throw new Error('Subject must be between 1 and 120 characters.');
@@ -94,25 +103,32 @@ async function sendPlainText(to: string, subject: string, body: string, purpose:
     `Reply-To: ${cleanHeader(config.username)}`,
     `To: ${cleanHeader(to)}`,
     `Date: ${new Date().toUTCString()}`,
-    `Message-ID: <${purpose}-${Date.now()}-${Math.random().toString(36).slice(2)}@newbernwebsites.com>`,
+    `Message-ID: <${options.purpose}-${Date.now()}-${Math.random().toString(36).slice(2)}@newbernwebsites.com>`,
     `Subject: ${cleanHeader(subject)}`,
     'MIME-Version: 1.0',
     'Content-Type: text/plain; charset=UTF-8',
     'Content-Transfer-Encoding: 8bit',
   ];
 
-  if (purpose === 'outreach') {
+  if (options.purpose === 'outreach') {
     headers.push(`List-Unsubscribe: <mailto:${cleanHeader(config.username)}?subject=unsubscribe>`);
+  }
+  if (options.marker) headers.push(`X-NBW-Automation-Key: ${cleanHeader(options.marker)}`);
+  if (options.replyToMessageId) {
+    const messageId = cleanHeader(options.replyToMessageId);
+    headers.push(`In-Reply-To: ${messageId}`, `References: ${messageId}`);
   }
 
   const message = dotStuff([...headers, '', body].join('\r\n'));
+  const recipients = [to];
+  if (options.copyToSelf && to.toLowerCase() !== config.username.toLowerCase()) recipients.push(config.username);
   await smtpConversation([
     { command: 'EHLO newbernwebsites.com', expect: 250 },
     { command: 'AUTH LOGIN', expect: 334 },
     { command: Buffer.from(config.username).toString('base64'), expect: 334 },
     { command: Buffer.from(config.password).toString('base64'), expect: 235 },
     { command: `MAIL FROM:<${config.username}>`, expect: 250 },
-    { command: `RCPT TO:<${to}>`, expect: 250 },
+    ...recipients.map(recipient => ({ command: `RCPT TO:<${recipient}>`, expect: 250 })),
     { command: 'DATA', expect: 354 },
     { command: `${message}\r\n.`, expect: 250 },
     { command: 'QUIT', expect: 221 },
@@ -136,9 +152,9 @@ export async function sendSelfTest() {
   const body = [
     'The protected mail engine successfully authenticated and sent this message.',
     '',
-    'No prospect email has been sent. Outreach is available only in supervised, individually approved mode.',
+    'No prospect email has been sent by this diagnostic.',
   ].join('\r\n');
-  await sendPlainText(config.username, subject, body, 'self-test');
+  await sendPlainText(config.username, subject, body, { purpose: 'self-test' });
 }
 
 export async function sendProspectEmail(input: { to: string; subject: string; body: string }) {
@@ -154,7 +170,51 @@ export async function sendProspectEmail(input: { to: string; subject: string; bo
     'If you would rather not hear from us, reply “no thanks” and we will not contact you again.',
   ].join('\r\n');
 
-  await sendPlainText(input.to.trim().toLowerCase(), input.subject.trim(), `${input.body.trim()}${complianceFooter}`, 'outreach');
+  await sendPlainText(input.to.trim().toLowerCase(), input.subject.trim(), `${input.body.trim()}${complianceFooter}`, { purpose: 'outreach' });
+}
+
+export async function sendQueuedProspectEmail(input: { to: string; subject: string; body: string; marker: string }) {
+  if (/https?:\/\//i.test(input.body) || /\/pay\//i.test(input.body)) {
+    throw new Error('First-touch outreach cannot contain links or payment requests.');
+  }
+
+  const complianceFooter = [
+    '',
+    '—',
+    'Advertisement from New Bern Websites',
+    '1423 South Glenburnie Road, Suite C, New Bern, NC 28562',
+    'If you would rather not hear from us, reply “no thanks” and we will not contact you again.',
+  ].join('\r\n');
+
+  await sendPlainText(
+    input.to.trim().toLowerCase(),
+    input.subject.trim(),
+    `${input.body.trim()}${complianceFooter}`,
+    { purpose: 'outreach', marker: input.marker, copyToSelf: true },
+  );
+}
+
+export async function sendAutomatedReply(input: {
+  to: string;
+  subject: string;
+  body: string;
+  marker: string;
+  replyToMessageId?: string;
+}) {
+  await sendPlainText(input.to.trim().toLowerCase(), input.subject.trim(), input.body.trim(), {
+    purpose: 'reply',
+    marker: input.marker,
+    copyToSelf: true,
+    replyToMessageId: input.replyToMessageId,
+  });
+}
+
+export async function sendOwnerAlert(input: { subject: string; body: string; marker: string }) {
+  const config = settings();
+  await sendPlainText(config.username, input.subject, input.body, {
+    purpose: 'internal',
+    marker: input.marker,
+  });
 }
 
 export async function readInboxStatus() {
@@ -202,6 +262,145 @@ export async function readInboxStatus() {
       if (/A[123] (NO|BAD)/i.test(buffer)) {
         clearTimeout(timer);
         finish(new Error('IMAP authentication or command failed.'));
+      }
+    });
+  });
+}
+
+function escapeImap(value: string) {
+  return value.replace(/(["\\])/g, '\\$1');
+}
+
+async function imapExchange(input: { search: string; fetchLatest?: boolean }) {
+  const config = settings();
+  return new Promise<{ ids: number[]; raw?: string }>((resolve, reject) => {
+    const socket = tls.connect({ host: config.imapHost, port: config.imapPort, servername: config.imapHost, rejectUnauthorized: true });
+    let buffer = '';
+    let settled = false;
+    let ids: number[] = [];
+    let stage: 'greeting' | 'login' | 'select' | 'search' | 'fetch' | 'logout' = 'greeting';
+
+    const finish = (error?: Error, raw?: string) => {
+      if (settled) return;
+      settled = true;
+      socket.end();
+      if (error) reject(error); else resolve({ ids, raw });
+    };
+
+    const timer = setTimeout(() => finish(new Error('IMAP connection timed out.')), 20_000);
+    socket.on('error', error => { clearTimeout(timer); finish(error); });
+    socket.on('data', chunk => {
+      buffer += chunk.toString('utf8');
+      if (stage === 'greeting' && buffer.includes('* OK')) {
+        stage = 'login';
+        socket.write(`A1 LOGIN "${escapeImap(config.username)}" "${escapeImap(config.password)}"\r\n`);
+      }
+      if (stage === 'login' && /A1 OK/i.test(buffer)) {
+        stage = 'select';
+        socket.write('A2 SELECT INBOX\r\n');
+      }
+      if (stage === 'select' && /A2 OK/i.test(buffer)) {
+        stage = 'search';
+        socket.write(`A3 UID SEARCH ${input.search}\r\n`);
+      }
+      if (stage === 'search' && /A3 OK/i.test(buffer)) {
+        const searchLine = buffer.match(/\* SEARCH([^\r\n]*)/i)?.[1] || '';
+        ids = searchLine.trim().split(/\s+/).filter(Boolean).map(Number).filter(Number.isFinite);
+        if (input.fetchLatest && ids.length) {
+          stage = 'fetch';
+          buffer = '';
+          socket.write(`A4 UID FETCH ${ids.at(-1)} BODY.PEEK[]\r\n`);
+        } else {
+          stage = 'logout';
+          socket.write('A5 LOGOUT\r\n');
+        }
+      }
+      if (stage === 'fetch' && /A4 OK/i.test(buffer)) {
+        const literal = buffer.match(/\{(\d+)\}\r\n/);
+        let raw: string | undefined;
+        if (literal?.index !== undefined) {
+          const start = literal.index + literal[0].length;
+          raw = buffer.slice(start, start + Number(literal[1]));
+        }
+        stage = 'logout';
+        socket.write('A5 LOGOUT\r\n');
+        clearTimeout(timer);
+        finish(undefined, raw);
+      }
+      if (stage === 'logout' && /A5 OK/i.test(buffer)) {
+        clearTimeout(timer);
+        finish();
+      }
+      if (/A[1-5] (NO|BAD)/i.test(buffer)) {
+        clearTimeout(timer);
+        finish(new Error('IMAP authentication or command failed.'));
+      }
+    });
+  });
+}
+
+export async function hasAutomationMarker(marker: string) {
+  const result = await imapExchange({ search: `HEADER X-NBW-Automation-Key "${escapeImap(marker)}"` });
+  return result.ids.length > 0;
+}
+
+export async function readLatestUnseenFrom(email: string) {
+  if (!validMailbox(email)) throw new Error('A valid sender email is required.');
+  const result = await imapExchange({ search: `UNSEEN FROM "${escapeImap(email)}"`, fetchLatest: true });
+  if (!result.raw) return null;
+
+  const [rawHeaders = '', ...rawBodyParts] = result.raw.split(/\r?\n\r?\n/);
+  const unfoldedHeaders = rawHeaders.replace(/\r?\n[ \t]+/g, ' ');
+  const subject = unfoldedHeaders.match(/^Subject:\s*(.+)$/im)?.[1]?.trim() || '';
+  const messageId = unfoldedHeaders.match(/^Message-ID:\s*(.+)$/im)?.[1]?.trim();
+  const contentType = unfoldedHeaders.match(/^Content-Type:\s*([^;\r\n]+)/im)?.[1]?.trim().toLowerCase() || 'text/plain';
+  const body = rawBodyParts.join('\n\n');
+
+  // Automated replies are only safe for plain-text messages. HTML or attachments
+  // are escalated rather than interpreted loosely.
+  return { uid: result.ids.at(-1) as number, subject, messageId, body, contentType };
+}
+
+export async function markMessageSeen(uid: number) {
+  const config = settings();
+  return new Promise<void>((resolve, reject) => {
+    const socket = tls.connect({ host: config.imapHost, port: config.imapPort, servername: config.imapHost, rejectUnauthorized: true });
+    let buffer = '';
+    let settled = false;
+    let stage: 'greeting' | 'login' | 'select' | 'store' | 'logout' = 'greeting';
+    const finish = (error?: Error) => {
+      if (settled) return;
+      settled = true;
+      socket.end();
+      if (error) reject(error); else resolve();
+    };
+    const timer = setTimeout(() => finish(new Error('IMAP connection timed out.')), 15_000);
+    socket.on('error', error => { clearTimeout(timer); finish(error); });
+    socket.on('data', chunk => {
+      buffer += chunk.toString('utf8');
+      if (stage === 'greeting' && buffer.includes('* OK')) {
+        stage = 'login';
+        socket.write(`A1 LOGIN "${escapeImap(config.username)}" "${escapeImap(config.password)}"\r\n`);
+      }
+      if (stage === 'login' && /A1 OK/i.test(buffer)) {
+        stage = 'select';
+        socket.write('A2 SELECT INBOX\r\n');
+      }
+      if (stage === 'select' && /A2 OK/i.test(buffer)) {
+        stage = 'store';
+        socket.write(`A3 UID STORE ${uid} +FLAGS (\\Seen)\r\n`);
+      }
+      if (stage === 'store' && /A3 OK/i.test(buffer)) {
+        stage = 'logout';
+        socket.write('A4 LOGOUT\r\n');
+      }
+      if (stage === 'logout' && /A4 OK/i.test(buffer)) {
+        clearTimeout(timer);
+        finish();
+      }
+      if (/A[1-4] (NO|BAD)/i.test(buffer)) {
+        clearTimeout(timer);
+        finish(new Error('IMAP command failed.'));
       }
     });
   });

@@ -83,9 +83,9 @@ export default function OutreachComposer({ user, lead, onSaved }: Props) {
 
   const alreadySent = lead.outreachStatus === 'Sent';
   return <section style={{ marginTop: 22, padding: 20, border: '1px solid #dfe5ec', borderRadius: 14, background: '#fff' }}>
-    <p className="crm-kicker" style={{ margin: 0 }}>SUPERVISED OUTREACH</p>
-    <h3 style={{ margin: '6px 0' }}>Personalized first-touch email</h3>
-    <p style={{ margin: '0 0 14px', color: '#637083', fontSize: 13 }}>Review the business-specific sentence before sending. The required address, ad disclosure, and reply-to-opt-out footer are added automatically.</p>
+    <p className="crm-kicker" style={{ margin: 0 }}>MANUAL FALLBACK</p>
+    <h3 style={{ margin: '6px 0' }}>One-off first-touch email</h3>
+    <p style={{ margin: '0 0 14px', color: '#637083', fontSize: 13 }}>Autopilot handles its verified queue. Use this only for an additional one-off recipient; the required address, ad disclosure, and opt-out footer are added automatically.</p>
     <label style={{ display: 'grid', gap: 6, marginBottom: 12 }}><span>Subject</span><input value={subject} maxLength={120} onChange={event => setSubject(event.target.value)} /></label>
     <label style={{ display: 'grid', gap: 6 }}><span>Message</span><textarea value={body} maxLength={5000} rows={10} onChange={event => setBody(event.target.value)} /></label>
     <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 12 }}>
