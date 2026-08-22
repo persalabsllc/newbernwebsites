@@ -154,7 +154,7 @@ export async function GET(request: Request) {
       weekdayOnly: true,
       prospects,
       background: {
-        schedule: 'Weekday mornings Eastern',
+        schedule: 'Five first touches per hourly run on weekdays until the daily limit is reached',
         firstTouchLimit,
         replyChecks: 'Replies are checked hourly on weekdays. Follow-ups run on days 4, 9, and 14.',
       },

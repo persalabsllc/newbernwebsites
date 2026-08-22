@@ -4,6 +4,7 @@ import {
   getOutreachLimits,
   loadOutreachSnapshot,
   processReplies,
+  replyWindowOpen,
   sendDueFollowUps,
   sendNextFirstTouches,
   withOutreachRunLock,
@@ -19,6 +20,9 @@ export async function GET(request: Request) {
   }
   if (!cronAuthorized(request)) {
     return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+  }
+  if (!replyWindowOpen()) {
+    return NextResponse.json({ ok: true, skipped: 'Outside weekday 8 AM–8 PM Eastern outreach window.' });
   }
 
   try {

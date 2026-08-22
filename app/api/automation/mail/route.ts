@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireFirebaseUser } from '../../../../lib/firebase-server-auth';
 import { readInboxStatus, sendOneOffEmail, sendProspectEmail, sendSelfTest, verifySmtp } from '../../../../lib/mail-server';
 import { getAllProspects } from '../../../../lib/prospect-store';
+import { currentFirstTouchLimit } from '../../../../lib/outreach-autopilot';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -26,6 +27,7 @@ export async function POST(request: Request) {
         mode: process.env.CRON_SECRET ? 'guarded-autopilot' : 'paused',
         autopilotReady: Boolean(process.env.CRON_SECRET),
         queued: prospects.length,
+        dailyLimit: currentFirstTouchLimit(),
       });
     }
 

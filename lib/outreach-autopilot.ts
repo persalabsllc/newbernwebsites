@@ -12,6 +12,7 @@ import { getAllProspects, type StoredOutreachLead } from './prospect-store';
 import { classifyReply, type ReplyAction } from './reply-automation';
 
 const FOLLOW_UP_LIMIT = 30;
+const FIRST_TOUCH_BATCH_SIZE = 5;
 const DAY_MS = 86_400_000;
 const NEW_YORK_TIME_ZONE = 'America/New_York';
 
@@ -52,9 +53,21 @@ export async function withOutreachRunLock<T>(work: () => Promise<T>) {
 }
 
 export function currentFirstTouchLimit(now = Date.now()) {
-  if (now < Date.parse('2026-08-31T00:00:00-04:00')) return 3;
-  if (now < Date.parse('2026-09-07T00:00:00-04:00')) return 6;
-  return 10;
+  if (now < Date.parse('2026-08-25T00:00:00-04:00')) return 15;
+  if (now < Date.parse('2026-08-26T00:00:00-04:00')) return 25;
+  if (now < Date.parse('2026-08-27T00:00:00-04:00')) return 35;
+  return 50;
+}
+
+function easternDayKey(value: string | number | Date) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return '';
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: NEW_YORK_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
 }
 
 export function replyWindowOpen(now = new Date()) {
@@ -308,6 +321,12 @@ export async function sendNextFirstTouches(snapshot: OutreachSnapshot, runSuppre
   const suppressedMarkers = messageMap(snapshot.automationMessages, 'suppressed:');
   const sent: string[] = [];
   const firstTouchLimit = currentFirstTouchLimit();
+  const today = easternDayKey(new Date());
+  const sentToday = snapshot.automationMessages.filter(message =>
+    message.marker?.startsWith('outreach:') && easternDayKey(message.date || '') === today
+  ).length;
+  const runLimit = Math.min(FIRST_TOUCH_BATCH_SIZE, Math.max(0, firstTouchLimit - sentToday));
+  if (runLimit === 0) return sent;
 
   for (const lead of snapshot.prospects) {
     const marker = `outreach:${lead.key}`;
@@ -315,7 +334,7 @@ export async function sendNextFirstTouches(snapshot: OutreachSnapshot, runSuppre
     await sendQueuedProspectEmail({ ...lead, to: lead.email, marker });
     sentMarkers.set(marker, { marker } as AutomationMessage);
     sent.push(lead.key);
-    if (sent.length >= firstTouchLimit) break;
+    if (sent.length >= runLimit) break;
   }
   return sent;
 }
@@ -389,6 +408,7 @@ export async function sendDueFollowUps(snapshot: OutreachSnapshot, runSuppressio
 export function getOutreachLimits() {
   return {
     firstTouches: currentFirstTouchLimit(),
+    firstTouchesPerRun: FIRST_TOUCH_BATCH_SIZE,
     followUps: FOLLOW_UP_LIMIT,
   };
 }

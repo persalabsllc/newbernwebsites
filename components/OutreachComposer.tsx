@@ -25,7 +25,7 @@ function starter(lead: OutreachLead) {
   const greeting = lead.name ? `Hi ${lead.name.split(/\s+/)[0]},` : 'Hi there,';
   return {
     subject: `Quick website idea for ${business}`,
-    body: `${greeting}\n\nI came across ${business} while looking at local businesses in the New Bern area. I had one specific website idea that may help turn more visitors into calls and inquiries.\n\nWe build turnkey local-business websites and handle the design, copy, domain, hosting, and launch. Would it be useful if I sent over the idea?\n\nKyle\nNew Bern Websites`,
+    body: `${greeting}\n\nI came across ${business} while looking at local businesses in Eastern North Carolina. I had one specific website idea that may help turn more visitors into calls and inquiries.\n\nWe build turnkey local-business websites and handle the design, copy, domain, hosting, and launch. Would it be useful if I sent over the idea?\n\nKyle\nNew Bern Websites`,
   };
 }
 

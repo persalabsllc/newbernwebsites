@@ -3,7 +3,7 @@
   "crons": [
     {
       "path": "/api/cron/autopilot",
-      "schedule": "17 14 * * 1-5"
+      "schedule": "17 13-22 * * 1-5"
     },
     {
       "path": "/api/cron/replies",

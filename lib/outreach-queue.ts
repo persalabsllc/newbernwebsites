@@ -10,8 +10,8 @@ export type OutreachLead = {
 };
 
 // Every address below was copied from the business's own public website.
-// The cron warms from three to ten new first touches per weekday. Replies are
-// handled independently, so increasing this queue does not bypass the daily cap.
+// The cron ramps from 15 to 50 new first touches per weekday, spread across
+// five-message hourly batches. Replies and follow-ups are handled independently.
 export const OUTREACH_QUEUE: OutreachLead[] = [
   {
     key: 'dlo-construction-2026-08',

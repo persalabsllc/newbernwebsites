@@ -117,7 +117,7 @@ export default function ProspectPipeline({ user }: { user: User }) {
   return <section className="prospect-pipeline">
     <div className="admin-module">
       <div className="pipeline-head">
-        <div><p className="crm-kicker">MANUAL INTAKE</p><h2>Add a prospect</h2><p>Add a business to the same automated queue. Its first-touch draft is created immediately; sending follows queue order and the three-per-weekday cap.</p></div>
+        <div><p className="crm-kicker">MANUAL INTAKE</p><h2>Add a prospect</h2><p>Add any suitable business within 75 miles of New Bern to the automated queue. Its first-touch draft is created immediately and released within the active weekday limit.</p></div>
       </div>
       <form className="prospect-add-form" onSubmit={addProspect}>
         <label><span>Business name</span><input name="business" required maxLength={120} /></label>
@@ -134,7 +134,7 @@ export default function ProspectPipeline({ user }: { user: User }) {
       <div>
         <p className="crm-kicker">OUTBOUND SALES</p>
         <h2>Prospect Pipeline</h2>
-        <p>Verified businesses, pending first touches, four-touch follow-up sequences, replies, escalation, and payment progress. The warmed-up weekday allowance rises from three to ten new prospects.</p>
+        <p>Verified businesses across New Bern and the surrounding 75-mile Eastern North Carolina market. The weekday allowance ramps 15 → 25 → 35 → 50, sent in five-message hourly batches.</p>
       </div>
       <button onClick={() => void load()} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh status'}</button>
     </div>
