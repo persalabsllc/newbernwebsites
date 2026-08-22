@@ -950,7 +950,7 @@ a {
 .portfolio-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-lg); }
 .portfolio-image { display: block; min-height: 275px; background-position: center; background-size: cover; }
 .portfolio-image.homes { background-image: linear-gradient(0deg,rgba(4,30,53,.25),transparent),url("https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1000&q=84"); }
-.portfolio-image.marine { background-image: linear-gradient(0deg,rgba(4,30,53,.38),transparent),url("https://images.unsplash.com/photo-1504222490345-c075b6008014?auto=format&fit=crop&w=1000&q=84"); }
+.portfolio-image.marine { background-image: linear-gradient(0deg,rgba(4,30,53,.38),transparent),url("https://unsplash.com/photos/gfZdTHnYcKY/download?force=true&w=1200"); }
 .portfolio-image.pools { background-image: linear-gradient(0deg,rgba(4,30,53,.25),transparent),url("https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?auto=format&fit=crop&w=1000&q=84"); }
 .portfolio-copy { display: grid; padding: 24px; gap: 7px; }
 .portfolio-copy small { color: var(--gold-deep); font-size: 9px; font-weight: 900; letter-spacing: .13em; }
