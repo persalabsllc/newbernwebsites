@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireFirebaseUser } from '../../../../lib/firebase-server-auth';
 import { readInboxStatus, sendProspectEmail, sendSelfTest, verifySmtp } from '../../../../lib/mail-server';
+import { OUTREACH_QUEUE } from '../../../../lib/outreach-queue';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,7 +19,15 @@ export async function POST(request: Request) {
 
     if (body.action === 'verify') {
       const [inbox] = await Promise.all([readInboxStatus(), verifySmtp()]);
-      return NextResponse.json({ ok: true, email: user.email, inbox, outreachEnabled: true, mode: 'supervised' });
+      return NextResponse.json({
+        ok: true,
+        email: user.email,
+        inbox,
+        outreachEnabled: true,
+        mode: process.env.CRON_SECRET ? 'guarded-autopilot' : 'paused',
+        autopilotReady: Boolean(process.env.CRON_SECRET),
+        queued: OUTREACH_QUEUE.length,
+      });
     }
 
     if (body.action === 'send-self-test') {
