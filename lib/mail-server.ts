@@ -75,6 +75,50 @@ function cleanHeader(value: string) {
   return value.replace(/[\r\n]+/g, ' ').trim();
 }
 
+function validMailbox(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) && value.length <= 254;
+}
+
+function dotStuff(value: string) {
+  return value.replace(/^\./gm, '..');
+}
+
+async function sendPlainText(to: string, subject: string, body: string, purpose: 'self-test' | 'outreach') {
+  const config = settings();
+  if (!validMailbox(to)) throw new Error('A valid recipient email is required.');
+  if (!subject.trim() || subject.length > 120) throw new Error('Subject must be between 1 and 120 characters.');
+  if (!body.trim() || body.length > 5000) throw new Error('Message must be between 1 and 5,000 characters.');
+
+  const headers = [
+    `From: New Bern Websites <${cleanHeader(config.username)}>`,
+    `Reply-To: ${cleanHeader(config.username)}`,
+    `To: ${cleanHeader(to)}`,
+    `Date: ${new Date().toUTCString()}`,
+    `Message-ID: <${purpose}-${Date.now()}-${Math.random().toString(36).slice(2)}@newbernwebsites.com>`,
+    `Subject: ${cleanHeader(subject)}`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/plain; charset=UTF-8',
+    'Content-Transfer-Encoding: 8bit',
+  ];
+
+  if (purpose === 'outreach') {
+    headers.push(`List-Unsubscribe: <mailto:${cleanHeader(config.username)}?subject=unsubscribe>`);
+  }
+
+  const message = dotStuff([...headers, '', body].join('\r\n'));
+  await smtpConversation([
+    { command: 'EHLO newbernwebsites.com', expect: 250 },
+    { command: 'AUTH LOGIN', expect: 334 },
+    { command: Buffer.from(config.username).toString('base64'), expect: 334 },
+    { command: Buffer.from(config.password).toString('base64'), expect: 235 },
+    { command: `MAIL FROM:<${config.username}>`, expect: 250 },
+    { command: `RCPT TO:<${to}>`, expect: 250 },
+    { command: 'DATA', expect: 354 },
+    { command: `${message}\r\n.`, expect: 250 },
+    { command: 'QUIT', expect: 221 },
+  ], config.smtpHost, config.smtpPort);
+}
+
 export async function verifySmtp() {
   const config = settings();
   await smtpConversation([
@@ -92,32 +136,25 @@ export async function sendSelfTest() {
   const body = [
     'The protected mail engine successfully authenticated and sent this message.',
     '',
-    'No prospect email has been sent. Live outreach remains disabled.',
+    'No prospect email has been sent. Outreach is available only in supervised, individually approved mode.',
   ].join('\r\n');
-  const message = [
-    `From: New Bern Websites <${cleanHeader(config.username)}>`,
-    `To: ${cleanHeader(config.username)}`,
-    `Date: ${new Date().toUTCString()}`,
-    `Message-ID: <test-${Date.now()}@newbernwebsites.com>`,
-    `Subject: ${subject}`,
-    'MIME-Version: 1.0',
-    'Content-Type: text/plain; charset=UTF-8',
-    'Content-Transfer-Encoding: 8bit',
-    '',
-    body,
-  ].join('\r\n').replace(/^\./gm, '..');
+  await sendPlainText(config.username, subject, body, 'self-test');
+}
 
-  await smtpConversation([
-    { command: 'EHLO newbernwebsites.com', expect: 250 },
-    { command: 'AUTH LOGIN', expect: 334 },
-    { command: Buffer.from(config.username).toString('base64'), expect: 334 },
-    { command: Buffer.from(config.password).toString('base64'), expect: 235 },
-    { command: `MAIL FROM:<${config.username}>`, expect: 250 },
-    { command: `RCPT TO:<${config.username}>`, expect: 250 },
-    { command: 'DATA', expect: 354 },
-    { command: `${message}\r\n.`, expect: 250 },
-    { command: 'QUIT', expect: 221 },
-  ], config.smtpHost, config.smtpPort);
+export async function sendProspectEmail(input: { to: string; subject: string; body: string }) {
+  if (/https?:\/\//i.test(input.body) || /\/pay\//i.test(input.body)) {
+    throw new Error('First-touch outreach cannot contain links or payment requests.');
+  }
+
+  const complianceFooter = [
+    '',
+    '—',
+    'Advertisement from New Bern Websites',
+    '1423 South Glenburnie Road, Suite C, New Bern, NC 28562',
+    'If you would rather not hear from us, reply “no thanks” and we will not contact you again.',
+  ].join('\r\n');
+
+  await sendPlainText(input.to.trim().toLowerCase(), input.subject.trim(), `${input.body.trim()}${complianceFooter}`, 'outreach');
 }
 
 export async function readInboxStatus() {
