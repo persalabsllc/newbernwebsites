@@ -100,6 +100,7 @@ export function classifyReply(input: {
         '',
         '• Turnkey Website — $2,500 total ($1,250 to begin, $1,250 at completion). Up to five pages, lead form, local SEO setup, domain/hosting, and two revision rounds.',
         '• Media Website — $3,500 total ($1,750 to begin, $1,750 at completion). Everything above, plus a 90-minute local shoot, 25 edited photos, a silent hero video, and three vertical clips.',
+        '• Both packages include 30 days of Captain 97.1 local business underwriting acknowledgments at no additional charge.',
         '',
         'Once we have the complete intake, the staging target is within 21 days. Which option sounds closer to what you need?',
         signature,

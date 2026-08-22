@@ -23,6 +23,12 @@ type Prospect = {
   addedManually: boolean;
   addedAt: string;
   sentAt: string;
+  followUp1At: string;
+  followUp2At: string;
+  followUp3At: string;
+  outreachStage: string;
+  lastOutreachAt: string;
+  nextAction: string;
   repliedAt: string;
 };
 
@@ -101,6 +107,9 @@ export default function ProspectPipeline({ user }: { user: User }) {
   const activity = prospects.flatMap(prospect => {
     const rows: Array<{ date: string; action: string; business: string; result: string }> = [];
     if (prospect.sent) rows.push({ date: prospect.sentAt, action: 'First-touch sent', business: prospect.business, result: prospect.replyStage });
+    if (prospect.followUp1At) rows.push({ date: prospect.followUp1At, action: 'Follow-up 1 sent', business: prospect.business, result: 'Shared the specific website opportunity again' });
+    if (prospect.followUp2At) rows.push({ date: prospect.followUp2At, action: 'Pricing follow-up sent', business: prospect.business, result: 'Shared fixed pricing, 50/50 terms, and included underwriting' });
+    if (prospect.followUp3At) rows.push({ date: prospect.followUp3At, action: 'Final follow-up sent', business: prospect.business, result: 'Closed the automated sequence politely' });
     if (prospect.repliedAt) rows.push({ date: prospect.repliedAt, action: 'Reply received', business: prospect.business, result: prospect.status });
     return rows;
   }).sort((a, b) => String(b.date).localeCompare(String(a.date)));
@@ -125,7 +134,7 @@ export default function ProspectPipeline({ user }: { user: User }) {
       <div>
         <p className="crm-kicker">OUTBOUND SALES</p>
         <h2>Prospect Pipeline</h2>
-        <p>Verified businesses, pending first touches, replies, escalation, and payment progress. The scheduler sends up to three pending emails each weekday.</p>
+        <p>Verified businesses, pending first touches, four-touch follow-up sequences, replies, escalation, and payment progress. The warmed-up weekday allowance rises from three to ten new prospects.</p>
       </div>
       <button onClick={() => void load()} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh status'}</button>
     </div>
@@ -148,7 +157,7 @@ export default function ProspectPipeline({ user }: { user: User }) {
 
     <div className="prospect-table-wrap">
       <table className="prospect-table">
-        <thead><tr><th>Prospect</th><th>Why selected</th><th>Email</th><th>Reply</th><th>Payment</th></tr></thead>
+        <thead><tr><th>Prospect</th><th>Why selected</th><th>Outreach</th><th>Reply</th><th>Next action</th></tr></thead>
         <tbody>{visible.map(prospect => <tr key={prospect.key} className={prospect.needsKyle ? 'needs-attention' : ''}>
           <td>
             <strong>{prospect.business}</strong>
@@ -159,10 +168,10 @@ export default function ProspectPipeline({ user }: { user: User }) {
           <td><p>{prospect.observation}</p></td>
           <td>
             <span className={`pipeline-pill ${prospect.status.toLowerCase().replace(/\s+/g, '-')}`}>{prospect.status}</span>
-            <small>{prospect.sent ? prospect.subject : `Queue #${prospect.queuePosition} · weekday batch ${prospect.scheduledBatch}`}</small>
+            <small>{prospect.sent ? prospect.outreachStage : `Queue #${prospect.queuePosition} · weekday batch ${prospect.scheduledBatch}`}</small>
           </td>
           <td><p>{prospect.replyStage}</p></td>
-          <td><p>{prospect.paymentStage}</p></td>
+          <td><p>{prospect.nextAction}</p><small>{prospect.paymentStage}</small></td>
         </tr>)}</tbody>
       </table>
     </div>

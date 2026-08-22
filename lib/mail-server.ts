@@ -155,6 +155,16 @@ export async function storeProspectRecord(marker: string, business: string, enco
   );
 }
 
+export async function recordAutomationEvent(input: { marker: string; subject: string; body: string }) {
+  const config = settings();
+  await sendPlainText(
+    config.username,
+    `[NBW Automation] ${input.subject}`,
+    input.body,
+    { purpose: 'internal', marker: input.marker },
+  );
+}
+
 export async function verifySmtp() {
   const config = settings();
   await smtpConversation([
@@ -177,40 +187,57 @@ export async function sendSelfTest() {
   await sendPlainText(config.username, subject, body, { purpose: 'self-test' });
 }
 
-export async function sendProspectEmail(input: { to: string; subject: string; body: string }) {
-  if (/https?:\/\//i.test(input.body) || /\/pay\//i.test(input.body)) {
-    throw new Error('First-touch outreach cannot contain links or payment requests.');
-  }
-
-  const complianceFooter = [
+function outreachFooter() {
+  return [
     '',
     '—',
     'Advertisement from New Bern Websites',
     '1423 South Glenburnie Road, Suite C, New Bern, NC 28562',
     'If you would rather not hear from us, reply “no thanks” and we will not contact you again.',
   ].join('\r\n');
+}
 
-  await sendPlainText(input.to.trim().toLowerCase(), input.subject.trim(), `${input.body.trim()}${complianceFooter}`, { purpose: 'outreach' });
+function assertLinkFreeOutreach(body: string) {
+  if (/https?:\/\//i.test(body) || /\/pay\//i.test(body)) {
+    throw new Error('Cold outreach cannot contain links or payment requests.');
+  }
+}
+
+export async function sendProspectEmail(input: { to: string; subject: string; body: string }) {
+  assertLinkFreeOutreach(input.body);
+
+  await sendPlainText(input.to.trim().toLowerCase(), input.subject.trim(), `${input.body.trim()}${outreachFooter()}`, { purpose: 'outreach' });
 }
 
 export async function sendQueuedProspectEmail(input: { to: string; subject: string; body: string; marker: string }) {
-  if (/https?:\/\//i.test(input.body) || /\/pay\//i.test(input.body)) {
-    throw new Error('First-touch outreach cannot contain links or payment requests.');
-  }
-
-  const complianceFooter = [
-    '',
-    '—',
-    'Advertisement from New Bern Websites',
-    '1423 South Glenburnie Road, Suite C, New Bern, NC 28562',
-    'If you would rather not hear from us, reply “no thanks” and we will not contact you again.',
-  ].join('\r\n');
+  assertLinkFreeOutreach(input.body);
 
   await sendPlainText(
     input.to.trim().toLowerCase(),
     input.subject.trim(),
-    `${input.body.trim()}${complianceFooter}`,
+    `${input.body.trim()}${outreachFooter()}`,
     { purpose: 'outreach', marker: input.marker, copyToSelf: true },
+  );
+}
+
+export async function sendFollowUpEmail(input: {
+  to: string;
+  subject: string;
+  body: string;
+  marker: string;
+  replyToMessageId?: string;
+}) {
+  assertLinkFreeOutreach(input.body);
+  await sendPlainText(
+    input.to.trim().toLowerCase(),
+    input.subject.trim(),
+    `${input.body.trim()}${outreachFooter()}`,
+    {
+      purpose: 'outreach',
+      marker: input.marker,
+      copyToSelf: true,
+      replyToMessageId: input.replyToMessageId,
+    },
   );
 }
 
@@ -359,7 +386,7 @@ async function imapExchange(input: { search: string; fetchLatest?: boolean }) {
   });
 }
 
-async function imapFetchAll(search: string, limit = 100) {
+async function imapFetchAll(search: string, limit = 100, headersOnly = false) {
   const config = settings();
   return new Promise<Array<{ uid: number; raw: string }>>((resolve, reject) => {
     const socket = tls.connect({ host: config.imapHost, port: config.imapPort, servername: config.imapHost, rejectUnauthorized: true });
@@ -401,7 +428,10 @@ async function imapFetchAll(search: string, limit = 100) {
         }
         stage = 'fetch';
         buffer = '';
-        socket.write(`A4 UID FETCH ${ids.join(',')} BODY.PEEK[]\r\n`);
+        const section = headersOnly
+          ? 'BODY.PEEK[HEADER.FIELDS (FROM SUBJECT MESSAGE-ID DATE CONTENT-TYPE X-NBW-AUTOMATION-KEY IN-REPLY-TO REFERENCES)]'
+          : 'BODY.PEEK[]';
+        socket.write(`A4 UID FETCH ${ids.join(',')} ${section}\r\n`);
       }
       if (stage === 'fetch' && /A4 OK/i.test(buffer)) {
         const messages: Array<{ uid: number; raw: string }> = [];
@@ -434,9 +464,16 @@ async function imapFetchAll(search: string, limit = 100) {
 function parseMessage(raw: string) {
   const [rawHeaders = '', ...rawBodyParts] = raw.split(/\r?\n\r?\n/);
   const unfoldedHeaders = rawHeaders.replace(/\r?\n[ \t]+/g, ' ');
+  const fromHeader = unfoldedHeaders.match(/^From:\s*(.+)$/im)?.[1]?.trim() || '';
+  const bracketedFrom = fromHeader.match(/<([^<>]+)>/)?.[1]?.trim();
+  const plainFrom = fromHeader.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0];
   return {
     subject: unfoldedHeaders.match(/^Subject:\s*(.+)$/im)?.[1]?.trim() || '',
     messageId: unfoldedHeaders.match(/^Message-ID:\s*(.+)$/im)?.[1]?.trim(),
+    inReplyTo: unfoldedHeaders.match(/^In-Reply-To:\s*(.+)$/im)?.[1]?.trim(),
+    references: unfoldedHeaders.match(/^References:\s*(.+)$/im)?.[1]?.trim(),
+    marker: unfoldedHeaders.match(/^X-NBW-Automation-Key:\s*(.+)$/im)?.[1]?.trim(),
+    from: (bracketedFrom || plainFrom || '').toLowerCase(),
     contentType: unfoldedHeaders.match(/^Content-Type:\s*([^;\r\n]+)/im)?.[1]?.trim().toLowerCase() || 'text/plain',
     date: unfoldedHeaders.match(/^Date:\s*(.+)$/im)?.[1]?.trim(),
     body: rawBodyParts.join('\n\n'),
@@ -445,6 +482,27 @@ function parseMessage(raw: string) {
 
 export async function readStoredProspectRecords() {
   const messages = await imapFetchAll('SUBJECT "[NBW Prospect]"');
+  return messages.map(message => ({ uid: message.uid, ...parseMessage(message.raw) }));
+}
+
+export async function readAutomationMessages(markerPrefix = '', limit = 5000) {
+  const messages = await imapFetchAll(
+    `HEADER X-NBW-Automation-Key "${escapeImap(markerPrefix)}"`,
+    limit,
+    true,
+  );
+  return messages.map(message => ({ uid: message.uid, ...parseMessage(message.raw) }));
+}
+
+export async function readInboxMessages(input: { unseenOnly?: boolean; limit?: number } = {}) {
+  const messages = await imapFetchAll(input.unseenOnly ? 'UNSEEN' : 'ALL', input.limit || 500);
+  return messages.map(message => ({ uid: message.uid, ...parseMessage(message.raw) }));
+}
+
+export async function readInboundMessages(input: { unseenOnly?: boolean; limit?: number } = {}) {
+  const config = settings();
+  const search = `${input.unseenOnly ? 'UNSEEN ' : ''}NOT FROM "${escapeImap(config.username)}"`;
+  const messages = await imapFetchAll(search, input.limit || 1000);
   return messages.map(message => ({ uid: message.uid, ...parseMessage(message.raw) }));
 }
 

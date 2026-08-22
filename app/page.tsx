@@ -160,7 +160,7 @@ export default function Home() {
           <a href="#pricing">Packages</a>
           <a href="#process">Process</a>
           <a href="#contact">Contact</a>
-          <a className="nav-cta" href="#contact">Start Your Website <span aria-hidden="true">→</span></a>
+          <a className="nav-cta" href="#contact">Free Website Audit <span aria-hidden="true">→</span></a>
         </nav>
       </header>
 
@@ -171,10 +171,10 @@ export default function Home() {
           <h1>Your Business Deserves<br />a <em>Better Website.</em></h1>
           <p className="lead">Beautiful, high-performance websites for local businesses — with the domain, hosting, design, development and launch handled for you.</p>
           <div className="actions">
-            <a className="button gold" href="#contact">Start Your Website <span aria-hidden="true">→</span></a>
+            <a className="button gold" href="#contact">Get a Free Website Audit <span aria-hidden="true">→</span></a>
             <a className="button outline-light" href="#pricing">See Packages</a>
           </div>
-          <p className="micro"><strong>50% to start.</strong> Final 50% before launch.</p>
+          <p className="micro"><strong>50% to start.</strong> Final 50% before launch. Captain 97.1 underwriting included.</p>
         </div>
         <div className="local-note"><em>Local. Professional. Trusted.</em><span>New Bern, NC</span></div>
       </section>
@@ -220,11 +220,11 @@ export default function Home() {
         <div className="radio-card">
           <div className="radio-mark">97.1</div>
           <div>
-            <p className="eyebrow light-eye">WEBSITE + LOCAL EXPOSURE</p>
-            <h3>Don’t just launch your website. Tell New Bern about it.</h3>
-            <p>Add a three-month promotional campaign on Captain 97.1 to either website package.</p>
+            <p className="eyebrow light-eye">INCLUDED WITH EVERY WEBSITE</p>
+            <h3>Launch locally—and let New Bern know you’re here.</h3>
+            <p>Every package includes 30 days of local business underwriting acknowledgments on Captain 97.1.</p>
           </div>
-          <div className="radio-price"><span>3 MONTHS</span><strong>+$500</strong></div>
+          <div className="radio-price"><span>30 DAYS</span><strong>INCLUDED</strong></div>
         </div>
 
         <div className="payment-bar">
@@ -265,14 +265,14 @@ export default function Home() {
           </div>
         </div>
         <div className="form-card" id="contact">
-          <p className="eyebrow light-eye">LET’S BUILD IT.</p>
-          <h2>Start Your Website</h2>
-          <p>Tell us a little about your business and we’ll be in touch.</p>
+          <p className="eyebrow light-eye">FREE 15-MINUTE REVIEW</p>
+          <h2>Request Your Website Audit</h2>
+          <p>Tell us about your business. We’ll identify the clearest next step—whether you hire us or not.</p>
           <LeadForm />
           <div className="office">
             <span>NEW BERN OFFICE</span>
             <strong>1423 South Glenburnie Road, Suite C</strong>
-            <small>New Bern, NC 28562</small>
+            <small>New Bern, NC 28562 · <a href="tel:+12525154389">252-515-4389</a></small>
           </div>
         </div>
       </section>
@@ -283,12 +283,12 @@ export default function Home() {
           <h2>Let’s build something great.</h2>
           <p>Your website. Our expertise. A stronger New Bern.</p>
         </div>
-        <a href="#contact" className="button gold">Start Your Website <span aria-hidden="true">→</span></a>
+        <a href="#contact" className="button gold">Get a Free Website Audit <span aria-hidden="true">→</span></a>
       </section>
 
       <footer>
         <div className="footer-brand"><Brand /></div>
-        <div><strong>Contact</strong><p>1423 South Glenburnie Road, Suite C<br />New Bern, NC 28562</p><p>newbernwebsites.com</p></div>
+        <div><strong>Contact</strong><p>1423 South Glenburnie Road, Suite C<br />New Bern, NC 28562</p><p><a href="tel:+12525154389">252-515-4389</a><br /><a href="mailto:kyle@newbernwebsites.com">Kyle@NewBernWebsites.com</a></p></div>
         <div><strong>Quick Links</strong><p><a href="#services">Services</a> · <a href="#pricing">Packages</a><br /><a href="#process">Process</a> · <a href="#contact">Contact</a></p></div>
         <div><strong>Local business. Local support.</strong><p>Serving New Bern and Eastern North Carolina.</p></div>
       </footer>

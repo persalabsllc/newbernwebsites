@@ -847,7 +847,7 @@ a {
   margin: 28px auto 0;
   overflow: hidden;
   align-items: center;
-  grid-template-columns: 110px 1fr 130px;
+  grid-template-columns: 110px 1fr 150px;
   gap: 26px;
   padding: 30px 35px;
   border: 1px solid rgba(139, 191, 226, 0.18);
@@ -903,7 +903,7 @@ a {
 
 .radio-price strong {
   color: var(--gold-soft);
-  font: 39px var(--font-serif);
+  font: 27px var(--font-serif);
 }
 
 .payment-bar {

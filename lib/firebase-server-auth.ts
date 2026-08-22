@@ -16,6 +16,17 @@ export async function requireFirebaseUser(request: Request) {
   const payload = await response.json() as { users?: Array<{ localId: string; email?: string }> };
   const user = payload.users?.[0];
   if (!user) throw new Error('Unauthorized');
+
+  const allowedEmails = (process.env.CRM_ADMIN_EMAILS || 'kyle@newbernwebsites.com')
+    .split(',')
+    .map(email => email.trim().toLowerCase())
+    .filter(Boolean);
+  const allowedUids = (process.env.CRM_ADMIN_UIDS || '')
+    .split(',')
+    .map(uid => uid.trim())
+    .filter(Boolean);
+  const emailAllowed = Boolean(user.email && allowedEmails.includes(user.email.toLowerCase()));
+  const uidAllowed = allowedUids.includes(user.localId);
+  if (!emailAllowed && !uidAllowed) throw new Error('Unauthorized');
   return user;
 }
-

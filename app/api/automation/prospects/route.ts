@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireFirebaseUser } from '../../../../lib/firebase-server-auth';
-import { readAutomationMarker, readLatestFrom } from '../../../../lib/mail-server';
+import { readAutomationMessages, readInboundMessages } from '../../../../lib/mail-server';
+import { currentFirstTouchLimit } from '../../../../lib/outreach-autopilot';
 import { buildManualProspect, getAllProspects, saveManualProspect, type StoredOutreachLead } from '../../../../lib/prospect-store';
 import { classifyReply } from '../../../../lib/reply-automation';
 
@@ -10,18 +11,50 @@ export const maxDuration = 60;
 
 type PipelineStatus = 'Pending email' | 'Contacted' | 'Replied automatically' | 'Needs Kyle' | 'Meeting requested' | 'Deposit link sent' | 'Opted out';
 
-async function prospectState(lead: StoredOutreachLead, index: number) {
-  const marker = `outreach:${lead.key}`;
-  const [sentMessage, inbound] = await Promise.all([
-    readAutomationMarker(marker),
-    readLatestFrom(lead.email),
-  ]);
+type AutomationMessage = Awaited<ReturnType<typeof readAutomationMessages>>[number];
+
+function dueDate(date: string | undefined, days: number) {
+  const timestamp = Date.parse(date || '');
+  return Number.isFinite(timestamp) ? new Date(timestamp + days * 86_400_000).toISOString() : '';
+}
+
+function prospectState(
+  lead: StoredOutreachLead,
+  index: number,
+  firstTouchLimit: number,
+  markers: Map<string, AutomationMessage>,
+  inboundBySender: Map<string, Awaited<ReturnType<typeof readInboundMessages>>[number]>,
+) {
+  const sentMessage = markers.get(`outreach:${lead.key}`);
+  const firstFollowUp = markers.get(`followup:1:${lead.key}`);
+  const secondFollowUp = markers.get(`followup:2:${lead.key}`);
+  const finalFollowUp = markers.get(`followup:3:${lead.key}`);
+  const inbound = inboundBySender.get(lead.email.toLowerCase());
   const sent = Boolean(sentMessage);
 
   let status: PipelineStatus = sent ? 'Contacted' : 'Pending email';
   let replyStage = sent ? 'Waiting for reply' : 'Not contacted';
   let paymentStage = 'Not offered';
   let needsKyle = false;
+  let outreachStage = sent ? 'First touch sent' : 'Queued for first touch';
+  let lastOutreachAt = sentMessage?.date || '';
+  let nextAction = sent ? `First follow-up due ${dueDate(sentMessage?.date, 4)}` : 'Waiting for a weekday first-touch slot';
+
+  if (firstFollowUp) {
+    outreachStage = 'Follow-up 1 sent';
+    lastOutreachAt = firstFollowUp.date || lastOutreachAt;
+    nextAction = `Pricing follow-up due ${dueDate(firstFollowUp.date, 5)}`;
+  }
+  if (secondFollowUp) {
+    outreachStage = 'Pricing follow-up sent';
+    lastOutreachAt = secondFollowUp.date || lastOutreachAt;
+    nextAction = `Final follow-up due ${dueDate(secondFollowUp.date, 5)}`;
+  }
+  if (finalFollowUp) {
+    outreachStage = 'Four-touch sequence complete';
+    lastOutreachAt = finalFollowUp.date || lastOutreachAt;
+    nextAction = 'No more automated outreach';
+  }
 
   if (inbound) {
     if (inbound.contentType !== 'text/plain') {
@@ -40,22 +73,27 @@ async function prospectState(lead: StoredOutreachLead, index: number) {
       if (action.kind === 'opt-out') {
         status = 'Opted out';
         replyStage = 'Suppressed';
+        nextAction = 'Permanently suppressed';
       } else if (action.kind === 'escalate') {
         status = 'Needs Kyle';
         replyStage = action.reason;
         needsKyle = true;
+        nextAction = 'Kyle must review the reply';
       } else if (action.alertOwner) {
         status = 'Meeting requested';
         replyStage = 'Automation requested their phone number and two time windows';
         needsKyle = true;
+        nextAction = 'Kyle must schedule the conversation';
       } else if (/\/pay\//i.test(action.body)) {
         status = 'Deposit link sent';
         replyStage = 'Replied automatically';
         paymentStage = '50% kickoff link sent';
+        nextAction = 'Watch Stripe for the kickoff payment';
       } else {
         status = 'Replied automatically';
         replyStage = 'Routine reply handled';
         if (/fixed-scope options/i.test(action.body)) paymentStage = 'Pricing sent';
+        nextAction = 'Watch for the prospect’s next reply';
       }
     }
   }
@@ -73,13 +111,19 @@ async function prospectState(lead: StoredOutreachLead, index: number) {
     addedAt: lead.addedAt || '',
     subject: lead.subject,
     queuePosition: index + 1,
-    scheduledBatch: Math.floor(index / 3) + 1,
+    scheduledBatch: Math.floor(index / firstTouchLimit) + 1,
     sent,
     status,
     replyStage,
     paymentStage,
     needsKyle,
     sentAt: sentMessage?.date || '',
+    followUp1At: firstFollowUp?.date || '',
+    followUp2At: secondFollowUp?.date || '',
+    followUp3At: finalFollowUp?.date || '',
+    outreachStage,
+    lastOutreachAt,
+    nextAction,
     repliedAt: inbound?.date || '',
   };
 }
@@ -87,25 +131,32 @@ async function prospectState(lead: StoredOutreachLead, index: number) {
 export async function GET(request: Request) {
   try {
     await requireFirebaseUser(request);
-    const queue = await getAllProspects();
-    const prospects = [];
-
-    // Keep IMAP load bounded while still returning the pipeline quickly.
-    for (let index = 0; index < queue.length; index += 3) {
-      const batch = queue.slice(index, index + 3);
-      const states = await Promise.all(batch.map((lead, offset) => prospectState(lead, index + offset)));
-      prospects.push(...states);
+    const [queue, automationMessages, inboxMessages] = await Promise.all([
+      getAllProspects(),
+      readAutomationMessages('', 5000),
+      readInboundMessages({ limit: 2000 }),
+    ]);
+    const markers = new Map(
+      automationMessages.flatMap(message => message.marker ? [[message.marker, message] as const] : []),
+    );
+    const inboundBySender = new Map<string, (typeof inboxMessages)[number]>();
+    for (const message of inboxMessages) {
+      if (!message.from) continue;
+      const current = inboundBySender.get(message.from);
+      if (!current || message.uid > current.uid) inboundBySender.set(message.from, message);
     }
+    const firstTouchLimit = currentFirstTouchLimit();
+    const prospects = queue.map((lead, index) => prospectState(lead, index, firstTouchLimit, markers, inboundBySender));
 
     return NextResponse.json({
       ok: true,
-      dailyLimit: 3,
+      dailyLimit: firstTouchLimit,
       weekdayOnly: true,
       prospects,
       background: {
-        schedule: 'Weekdays at 10:17 AM Eastern',
-        firstTouchLimit: 3,
-        replyChecks: 'Replies are processed during the weekday scheduled run, not continuously.',
+        schedule: 'Weekday mornings Eastern',
+        firstTouchLimit,
+        replyChecks: 'Replies are checked hourly on weekdays. Follow-ups run on days 4, 9, and 14.',
       },
     });
   } catch (error) {

@@ -8,6 +8,7 @@ import MailAutomationPanel from './MailAutomationPanel';
 import OutreachComposer from './OutreachComposer';
 import ProspectPipeline from './ProspectPipeline';
 import OneOffComposer from './OneOffComposer';
+import RevenueSprint from './RevenueSprint';
 
 type Lead = {
   id: string;
@@ -28,6 +29,7 @@ type Lead = {
 };
 
 const statuses = ['New', 'Contacted', 'Quoted', 'Won', 'Lost'];
+const ADMIN_EMAIL = 'kyle@newbernwebsites.com';
 
 export default function AdminCRM() {
   const [user, setUser] = useState<User | null>(null);
@@ -40,7 +42,17 @@ export default function AdminCRM() {
 
   useEffect(() => {
     if (!auth) { setAuthLoading(false); return; }
-    return onAuthStateChanged(auth, next => { setUser(next); setAuthLoading(false); });
+    const firebaseAuth = auth;
+    return onAuthStateChanged(firebaseAuth, next => {
+      if (next && next.email?.toLowerCase() !== ADMIN_EMAIL) {
+        setLoginError('This account is not authorized for the New Bern Websites CRM.');
+        setUser(null);
+        void signOut(firebaseAuth);
+      } else {
+        setUser(next);
+      }
+      setAuthLoading(false);
+    });
   }, []);
 
   useEffect(() => {
@@ -97,6 +109,7 @@ export default function AdminCRM() {
       <div><strong>New Bern Websites</strong><span>Lead CRM</span></div>
       <div><small>{user.email}</small><button onClick={() => auth && signOut(auth)}>Sign out</button></div>
     </header>
+    <RevenueSprint user={user} />
     <MailAutomationPanel user={user} />
     <ProspectPipeline user={user} />
     <OneOffComposer user={user} />

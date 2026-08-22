@@ -14,9 +14,9 @@ service cloud.firestore {
         request.resource.data.project is string && request.resource.data.project.size() <= 3000 &&
         request.resource.data.source == 'newbernwebsites.com';
 
-      allow read: if request.auth != null;
-      allow update: if request.auth != null;
-      allow delete: if request.auth != null;
+      allow read, update, delete: if
+        request.auth != null &&
+        request.auth.token.email == 'kyle@newbernwebsites.com';
     }
 
     match /{document=**} {

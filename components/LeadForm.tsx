@@ -67,8 +67,9 @@ export default function LeadForm() {
       </div>
       <label className="form-field">
         <span>Project type</span>
-        <select name="package" defaultValue="">
+        <select name="package" defaultValue="Free Website Audit">
           <option value="" disabled>What are you interested in?</option>
+          <option value="Free Website Audit">Free 15-minute website audit</option>
           <option value="Turnkey Website - $2,500">Turnkey Website — $2,500</option>
           <option value="Website + Professional Media - $3,500">Website + Professional Media — $3,500</option>
           <option value="Custom Project">Custom Project</option>
@@ -85,7 +86,7 @@ export default function LeadForm() {
         disabled={status === 'sending'}
         type="submit"
       >
-        {status === 'sending' ? 'Sending…' : 'Start Your Website'}
+        {status === 'sending' ? 'Sending…' : 'Request My Free Audit'}
       </button>
       {message && <p aria-live="polite" className={`form-status ${status}`} role="status">{message}</p>}
       <p className="form-note">No obligation. Tell us what you need and we’ll recommend the right path.</p>
