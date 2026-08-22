@@ -1,0 +1,21 @@
+export async function requireFirebaseUser(request: Request) {
+  const header = request.headers.get('authorization') || '';
+  const idToken = header.startsWith('Bearer ') ? header.slice(7) : '';
+  const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+
+  if (!idToken || !apiKey) throw new Error('Unauthorized');
+
+  const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(apiKey)}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ idToken }),
+    cache: 'no-store',
+  });
+
+  if (!response.ok) throw new Error('Unauthorized');
+  const payload = await response.json() as { users?: Array<{ localId: string; email?: string }> };
+  const user = payload.users?.[0];
+  if (!user) throw new Error('Unauthorized');
+  return user;
+}
+
