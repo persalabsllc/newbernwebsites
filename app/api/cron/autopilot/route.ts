@@ -8,7 +8,7 @@ import {
   sendOwnerAlert,
   sendQueuedProspectEmail,
 } from '../../../../lib/mail-server';
-import { OUTREACH_QUEUE } from '../../../../lib/outreach-queue';
+import { getAllProspects } from '../../../../lib/prospect-store';
 import { classifyReply } from '../../../../lib/reply-automation';
 
 export const runtime = 'nodejs';
@@ -26,7 +26,8 @@ function authorized(request: Request) {
 
 async function processReplies() {
   const activity: string[] = [];
-  for (const lead of OUTREACH_QUEUE) {
+  const prospects = await getAllProspects();
+  for (const lead of prospects) {
     const inbound = await readLatestUnseenFrom(lead.email);
     if (!inbound) continue;
 
@@ -93,7 +94,8 @@ const DAILY_FIRST_TOUCH_LIMIT = 3;
 
 async function sendNextFirstTouches() {
   const sent: string[] = [];
-  for (const lead of OUTREACH_QUEUE) {
+  const prospects = await getAllProspects();
+  for (const lead of prospects) {
     const marker = `outreach:${lead.key}`;
     if (await hasAutomationMarker(marker)) continue;
     await sendQueuedProspectEmail({ ...lead, to: lead.email, marker });
