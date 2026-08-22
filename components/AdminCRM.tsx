@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User } from 'firebase/auth';
 import { collection, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { auth, db, firebaseReady } from '../lib/firebase';
+import MailAutomationPanel from './MailAutomationPanel';
 
 type Lead = {
   id: string;
@@ -89,6 +90,7 @@ export default function AdminCRM() {
       <div><strong>New Bern Websites</strong><span>Lead CRM</span></div>
       <div><small>{user.email}</small><button onClick={() => auth && signOut(auth)}>Sign out</button></div>
     </header>
+    <MailAutomationPanel user={user} />
     <div className="crm-stats">
       <article><span>Total Leads</span><strong>{leads.length}</strong></article>
       <article><span>New</span><strong>{leads.filter(l => !l.status || l.status === 'New').length}</strong></article>
