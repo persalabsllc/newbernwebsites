@@ -19,7 +19,8 @@ service cloud.firestore {
         request.auth.token.email in [
           'kyle@newbernwebsites.com',
           'persalabsllc@gmail.com',
-          'cravencountysba@gmail.com'
+          'cravencountysba@gmail.com',
+          'kkkratoville@gmail.com'
         ];
     }
 

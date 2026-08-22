@@ -33,6 +33,7 @@ const ADMIN_EMAILS = new Set([
   'kyle@newbernwebsites.com',
   'persalabsllc@gmail.com',
   'cravencountysba@gmail.com',
+  'kkkratoville@gmail.com',
 ]);
 
 export default function AdminCRM() {
