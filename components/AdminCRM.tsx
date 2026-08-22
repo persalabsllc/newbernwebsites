@@ -7,6 +7,7 @@ import { auth, db, firebaseReady } from '../lib/firebase';
 import MailAutomationPanel from './MailAutomationPanel';
 import OutreachComposer from './OutreachComposer';
 import ProspectPipeline from './ProspectPipeline';
+import OneOffComposer from './OneOffComposer';
 
 type Lead = {
   id: string;
@@ -98,6 +99,7 @@ export default function AdminCRM() {
     </header>
     <MailAutomationPanel user={user} />
     <ProspectPipeline user={user} />
+    <OneOffComposer user={user} />
     <section className="inbound-heading">
       <p className="crm-kicker">INBOUND INQUIRIES</p>
       <h2>Website Leads</h2>

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireFirebaseUser } from '../../../../lib/firebase-server-auth';
-import { hasAutomationMarker, readLatestFrom } from '../../../../lib/mail-server';
-import { OUTREACH_QUEUE } from '../../../../lib/outreach-queue';
+import { readAutomationMarker, readLatestFrom } from '../../../../lib/mail-server';
+import { buildManualProspect, getAllProspects, saveManualProspect, type StoredOutreachLead } from '../../../../lib/prospect-store';
 import { classifyReply } from '../../../../lib/reply-automation';
 
 export const runtime = 'nodejs';
@@ -10,12 +10,13 @@ export const maxDuration = 60;
 
 type PipelineStatus = 'Pending email' | 'Contacted' | 'Replied automatically' | 'Needs Kyle' | 'Meeting requested' | 'Deposit link sent' | 'Opted out';
 
-async function prospectState(lead: (typeof OUTREACH_QUEUE)[number], index: number) {
+async function prospectState(lead: StoredOutreachLead, index: number) {
   const marker = `outreach:${lead.key}`;
-  const [sent, inbound] = await Promise.all([
-    hasAutomationMarker(marker),
+  const [sentMessage, inbound] = await Promise.all([
+    readAutomationMarker(marker),
     readLatestFrom(lead.email),
   ]);
+  const sent = Boolean(sentMessage);
 
   let status: PipelineStatus = sent ? 'Contacted' : 'Pending email';
   let replyStage = sent ? 'Waiting for reply' : 'Not contacted';
@@ -66,6 +67,10 @@ async function prospectState(lead: (typeof OUTREACH_QUEUE)[number], index: numbe
     sourceUrl: lead.sourceUrl,
     observation: lead.observation,
     recommendedPackage: lead.recommendedPackage,
+    phone: lead.phone || '',
+    contactPerson: lead.contactPerson || '',
+    addedManually: Boolean(lead.addedManually),
+    addedAt: lead.addedAt || '',
     subject: lead.subject,
     queuePosition: index + 1,
     scheduledBatch: Math.floor(index / 3) + 1,
@@ -74,17 +79,20 @@ async function prospectState(lead: (typeof OUTREACH_QUEUE)[number], index: numbe
     replyStage,
     paymentStage,
     needsKyle,
+    sentAt: sentMessage?.date || '',
+    repliedAt: inbound?.date || '',
   };
 }
 
 export async function GET(request: Request) {
   try {
     await requireFirebaseUser(request);
+    const queue = await getAllProspects();
     const prospects = [];
 
     // Keep IMAP load bounded while still returning the pipeline quickly.
-    for (let index = 0; index < OUTREACH_QUEUE.length; index += 3) {
-      const batch = OUTREACH_QUEUE.slice(index, index + 3);
+    for (let index = 0; index < queue.length; index += 3) {
+      const batch = queue.slice(index, index + 3);
       const states = await Promise.all(batch.map((lead, offset) => prospectState(lead, index + offset)));
       prospects.push(...states);
     }
@@ -94,10 +102,47 @@ export async function GET(request: Request) {
       dailyLimit: 3,
       weekdayOnly: true,
       prospects,
+      background: {
+        schedule: 'Weekdays at 10:17 AM Eastern',
+        firstTouchLimit: 3,
+        replyChecks: 'Replies are processed during the weekday scheduled run, not continuously.',
+      },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Could not load the prospect pipeline.';
     const status = message === 'Unauthorized' ? 401 : 500;
+    return NextResponse.json({ ok: false, error: message }, { status });
+  }
+}
+
+
+export async function POST(request: Request) {
+  try {
+    await requireFirebaseUser(request);
+    const input = await request.json() as {
+      business?: string;
+      website?: string;
+      phone?: string;
+      contactPerson?: string;
+      email?: string;
+    };
+    const existing = await getAllProspects();
+    const email = String(input.email || '').trim().toLowerCase();
+    if (existing.some(lead => lead.email.toLowerCase() === email)) {
+      return NextResponse.json({ ok: false, error: 'That email is already in the prospect pipeline.' }, { status: 409 });
+    }
+    const lead = buildManualProspect({
+      business: String(input.business || ''),
+      website: String(input.website || ''),
+      phone: String(input.phone || ''),
+      contactPerson: String(input.contactPerson || ''),
+      email,
+    });
+    await saveManualProspect(lead);
+    return NextResponse.json({ ok: true, prospect: lead });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Could not add the prospect.';
+    const status = message === 'Unauthorized' ? 401 : 400;
     return NextResponse.json({ ok: false, error: message }, { status });
   }
 }

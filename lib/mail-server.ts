@@ -135,6 +135,26 @@ async function sendPlainText(to: string, subject: string, body: string, options:
   ], config.smtpHost, config.smtpPort);
 }
 
+export async function sendOneOffEmail(input: { to: string; subject: string; body: string }) {
+  const marker = `oneoff:${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  await sendPlainText(input.to.trim().toLowerCase(), input.subject.trim(), input.body.trim(), {
+    purpose: 'outreach',
+    marker,
+    copyToSelf: true,
+  });
+  return marker;
+}
+
+export async function storeProspectRecord(marker: string, business: string, encodedRecord: string) {
+  const config = settings();
+  await sendPlainText(
+    config.username,
+    `[NBW Prospect] ${business}`,
+    `NBW_PROSPECT_V1:${encodedRecord}`,
+    { purpose: 'internal', marker },
+  );
+}
+
 export async function verifySmtp() {
   const config = settings();
   await smtpConversation([
@@ -339,6 +359,101 @@ async function imapExchange(input: { search: string; fetchLatest?: boolean }) {
   });
 }
 
+async function imapFetchAll(search: string, limit = 100) {
+  const config = settings();
+  return new Promise<Array<{ uid: number; raw: string }>>((resolve, reject) => {
+    const socket = tls.connect({ host: config.imapHost, port: config.imapPort, servername: config.imapHost, rejectUnauthorized: true });
+    let buffer = '';
+    let settled = false;
+    let ids: number[] = [];
+    let stage: 'greeting' | 'login' | 'select' | 'search' | 'fetch' = 'greeting';
+
+    const finish = (error?: Error, messages: Array<{ uid: number; raw: string }> = []) => {
+      if (settled) return;
+      settled = true;
+      socket.end();
+      if (error) reject(error); else resolve(messages);
+    };
+
+    const timer = setTimeout(() => finish(new Error('IMAP connection timed out.')), 25_000);
+    socket.on('error', error => { clearTimeout(timer); finish(error); });
+    socket.on('data', chunk => {
+      buffer += chunk.toString('utf8');
+      if (stage === 'greeting' && buffer.includes('* OK')) {
+        stage = 'login';
+        socket.write(`A1 LOGIN "${escapeImap(config.username)}" "${escapeImap(config.password)}"\r\n`);
+      }
+      if (stage === 'login' && /A1 OK/i.test(buffer)) {
+        stage = 'select';
+        socket.write('A2 SELECT INBOX\r\n');
+      }
+      if (stage === 'select' && /A2 OK/i.test(buffer)) {
+        stage = 'search';
+        socket.write(`A3 UID SEARCH ${search}\r\n`);
+      }
+      if (stage === 'search' && /A3 OK/i.test(buffer)) {
+        const searchLine = buffer.match(/\* SEARCH([^\r\n]*)/i)?.[1] || '';
+        ids = searchLine.trim().split(/\s+/).filter(Boolean).map(Number).filter(Number.isFinite).slice(-limit);
+        if (!ids.length) {
+          clearTimeout(timer);
+          finish();
+          return;
+        }
+        stage = 'fetch';
+        buffer = '';
+        socket.write(`A4 UID FETCH ${ids.join(',')} BODY.PEEK[]\r\n`);
+      }
+      if (stage === 'fetch' && /A4 OK/i.test(buffer)) {
+        const messages: Array<{ uid: number; raw: string }> = [];
+        let cursor = 0;
+        while (cursor < buffer.length) {
+          const literal = /\{(\d+)\}\r\n/g;
+          literal.lastIndex = cursor;
+          const match = literal.exec(buffer);
+          if (!match?.index) break;
+          const prefix = buffer.slice(cursor, match.index);
+          const uid = Number(prefix.match(/UID\s+(\d+)/i)?.[1]);
+          const start = match.index + match[0].length;
+          const length = Number(match[1]);
+          if (Number.isFinite(uid) && buffer.length >= start + length) {
+            messages.push({ uid, raw: buffer.slice(start, start + length) });
+          }
+          cursor = start + length;
+        }
+        clearTimeout(timer);
+        finish(undefined, messages);
+      }
+      if (/A[1-4] (NO|BAD)/i.test(buffer)) {
+        clearTimeout(timer);
+        finish(new Error('IMAP authentication or command failed.'));
+      }
+    });
+  });
+}
+
+function parseMessage(raw: string) {
+  const [rawHeaders = '', ...rawBodyParts] = raw.split(/\r?\n\r?\n/);
+  const unfoldedHeaders = rawHeaders.replace(/\r?\n[ \t]+/g, ' ');
+  return {
+    subject: unfoldedHeaders.match(/^Subject:\s*(.+)$/im)?.[1]?.trim() || '',
+    messageId: unfoldedHeaders.match(/^Message-ID:\s*(.+)$/im)?.[1]?.trim(),
+    contentType: unfoldedHeaders.match(/^Content-Type:\s*([^;\r\n]+)/im)?.[1]?.trim().toLowerCase() || 'text/plain',
+    date: unfoldedHeaders.match(/^Date:\s*(.+)$/im)?.[1]?.trim(),
+    body: rawBodyParts.join('\n\n'),
+  };
+}
+
+export async function readStoredProspectRecords() {
+  const messages = await imapFetchAll('SUBJECT "[NBW Prospect]"');
+  return messages.map(message => ({ uid: message.uid, ...parseMessage(message.raw) }));
+}
+
+export async function readAutomationMarker(marker: string) {
+  const result = await imapExchange({ search: `HEADER X-NBW-Automation-Key "${escapeImap(marker)}"`, fetchLatest: true });
+  if (!result.raw) return null;
+  return { uid: result.ids.at(-1) as number, ...parseMessage(result.raw) };
+}
+
 export async function hasAutomationMarker(marker: string) {
   const result = await imapExchange({ search: `HEADER X-NBW-Automation-Key "${escapeImap(marker)}"` });
   return result.ids.length > 0;
@@ -350,16 +465,11 @@ async function readLatestFromSearch(email: string, unseenOnly: boolean) {
   const result = await imapExchange({ search: `${prefix}FROM "${escapeImap(email)}"`, fetchLatest: true });
   if (!result.raw) return null;
 
-  const [rawHeaders = '', ...rawBodyParts] = result.raw.split(/\r?\n\r?\n/);
-  const unfoldedHeaders = rawHeaders.replace(/\r?\n[ \t]+/g, ' ');
-  const subject = unfoldedHeaders.match(/^Subject:\s*(.+)$/im)?.[1]?.trim() || '';
-  const messageId = unfoldedHeaders.match(/^Message-ID:\s*(.+)$/im)?.[1]?.trim();
-  const contentType = unfoldedHeaders.match(/^Content-Type:\s*([^;\r\n]+)/im)?.[1]?.trim().toLowerCase() || 'text/plain';
-  const body = rawBodyParts.join('\n\n');
+  const { subject, messageId, contentType, body, date } = parseMessage(result.raw);
 
   // Automated replies are only safe for plain-text messages. HTML or attachments
   // are escalated rather than interpreted loosely.
-  return { uid: result.ids.at(-1) as number, subject, messageId, body, contentType };
+  return { uid: result.ids.at(-1) as number, subject, messageId, body, contentType, date };
 }
 
 export async function readLatestUnseenFrom(email: string) {

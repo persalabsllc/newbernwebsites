@@ -53,6 +53,13 @@ export default function MailAutomationPanel({ user }: { user: User }) {
       {result?.ok && result.autopilotReady === false && <p className="form-status error">Autopilot is safely paused until the scheduler secret is added in Vercel.</p>}
       {result?.ok && result.recipient && <p className="form-status sent">Self-test sent to {result.recipient}.</p>}
       {result?.error && <p className="form-status error">{result.error}</p>}
+      <details className="background-details">
+        <summary>What runs silently—and what still needs you</summary>
+        <div className="background-grid">
+          <div><strong>Runs silently</strong><ul><li>At 10:17 AM Eastern each weekday, the scheduler checks replies and sends up to three pending first touches.</li><li>Safe routine replies, opt-outs, pricing information, and the correct kickoff payment link are handled automatically.</li><li>Manual prospects join the same queue without an approval step.</li></ul></div>
+          <div><strong>Does not run silently</strong><ul><li>Replies are not monitored continuously; a reply after the daily run waits until the next weekday run.</li><li>Ambiguous, legal, discount, complaint, attachment, or unusual replies are escalated to your inbox.</li><li>Meetings, phone calls, project delivery, and payment disputes still need you.</li><li>One-off emails send only when you click Send and do not receive automated follow-ups.</li></ul></div>
+        </div>
+      </details>
     </section>
   );
 }
