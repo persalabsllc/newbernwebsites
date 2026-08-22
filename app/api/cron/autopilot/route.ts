@@ -89,14 +89,18 @@ async function processReplies() {
   return activity;
 }
 
-async function sendNextFirstTouch() {
+const DAILY_FIRST_TOUCH_LIMIT = 3;
+
+async function sendNextFirstTouches() {
+  const sent: string[] = [];
   for (const lead of OUTREACH_QUEUE) {
     const marker = `outreach:${lead.key}`;
     if (await hasAutomationMarker(marker)) continue;
     await sendQueuedProspectEmail({ ...lead, to: lead.email, marker });
-    return lead.key;
+    sent.push(lead.key);
+    if (sent.length >= DAILY_FIRST_TOUCH_LIMIT) break;
   }
-  return null;
+  return sent;
 }
 
 export async function GET(request: Request) {
@@ -109,8 +113,8 @@ export async function GET(request: Request) {
 
   try {
     const replyActivity = await processReplies();
-    const firstTouch = await sendNextFirstTouch();
-    return NextResponse.json({ ok: true, replyActivity, firstTouch });
+    const firstTouches = await sendNextFirstTouches();
+    return NextResponse.json({ ok: true, replyActivity, firstTouches, dailyLimit: DAILY_FIRST_TOUCH_LIMIT });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Autopilot run failed.';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });

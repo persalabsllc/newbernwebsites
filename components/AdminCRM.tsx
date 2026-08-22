@@ -6,6 +6,7 @@ import { collection, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc
 import { auth, db, firebaseReady } from '../lib/firebase';
 import MailAutomationPanel from './MailAutomationPanel';
 import OutreachComposer from './OutreachComposer';
+import ProspectPipeline from './ProspectPipeline';
 
 type Lead = {
   id: string;
@@ -96,6 +97,12 @@ export default function AdminCRM() {
       <div><small>{user.email}</small><button onClick={() => auth && signOut(auth)}>Sign out</button></div>
     </header>
     <MailAutomationPanel user={user} />
+    <ProspectPipeline user={user} />
+    <section className="inbound-heading">
+      <p className="crm-kicker">INBOUND INQUIRIES</p>
+      <h2>Website Leads</h2>
+      <p>People who submitted the public website form. This is separate from the outbound prospect queue above.</p>
+    </section>
     <div className="crm-stats">
       <article><span>Total Leads</span><strong>{leads.length}</strong></article>
       <article><span>New</span><strong>{leads.filter(l => !l.status || l.status === 'New').length}</strong></article>

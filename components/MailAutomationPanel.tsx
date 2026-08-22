@@ -39,17 +39,17 @@ export default function MailAutomationPanel({ user }: { user: User }) {
     <section style={{ margin: '20px auto 0', maxWidth: 1180, padding: '18px 20px', border: '1px solid #dfe5ec', borderRadius: 14, background: '#fff' }}>
       <div style={{ display: 'flex', gap: 16, justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
         <div>
-          <p className="crm-kicker" style={{ margin: 0 }}>AUTOMATION SETUP</p>
-          <strong>Guarded email autopilot</strong>
-          <p style={{ margin: '5px 0 0', color: '#637083' }}>Verified public contacts only. One first-touch email per weekday, automatic routine replies, and human escalation for calls or non-standard terms.</p>
+          <p className="crm-kicker" style={{ margin: 0 }}>LIVE AUTOMATION</p>
+          <strong>Email autopilot</strong>
+          <p style={{ margin: '5px 0 0', color: '#637083' }}>Up to three personalized first-touch emails each weekday, automatic routine replies, and escalation only when your involvement is necessary.</p>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <button disabled={Boolean(busy)} onClick={() => run('verify')}>{busy === 'verify' ? 'Checking…' : 'Verify mail'}</button>
+          <button disabled={Boolean(busy)} onClick={() => run('verify')}>{busy === 'verify' ? 'Checking…' : 'Check connection'}</button>
           <button disabled={Boolean(busy)} onClick={() => run('send-self-test')}>{busy === 'send-self-test' ? 'Sending…' : 'Send self-test'}</button>
         </div>
       </div>
       {result?.ok && result.inbox && <p className="form-status sent">Connected. Inbox: {result.inbox.messages} messages, {result.inbox.unseen} unread.</p>}
-      {result?.ok && result.autopilotReady && <p className="form-status sent">Autopilot ready. {result.queued || 0} verified first-touch messages are queued.</p>}
+      {result?.ok && result.autopilotReady && <p className="form-status sent">Autopilot live. {result.queued || 0} verified prospects are in the pipeline; up to three pending emails send each weekday.</p>}
       {result?.ok && result.autopilotReady === false && <p className="form-status error">Autopilot is safely paused until the scheduler secret is added in Vercel.</p>}
       {result?.ok && result.recipient && <p className="form-status sent">Self-test sent to {result.recipient}.</p>}
       {result?.error && <p className="form-status error">{result.error}</p>}
