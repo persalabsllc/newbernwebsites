@@ -16,7 +16,11 @@ service cloud.firestore {
 
       allow read, update, delete: if
         request.auth != null &&
-        request.auth.token.email == 'kyle@newbernwebsites.com';
+        request.auth.token.email in [
+          'kyle@newbernwebsites.com',
+          'persalabsllc@gmail.com',
+          'cravencountysba@gmail.com'
+        ];
     }
 
     match /{document=**} {

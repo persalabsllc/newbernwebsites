@@ -17,7 +17,7 @@ export async function requireFirebaseUser(request: Request) {
   const user = payload.users?.[0];
   if (!user) throw new Error('Unauthorized');
 
-  const allowedEmails = (process.env.CRM_ADMIN_EMAILS || 'kyle@newbernwebsites.com')
+  const allowedEmails = (process.env.CRM_ADMIN_EMAILS || 'kyle@newbernwebsites.com,persalabsllc@gmail.com,cravencountysba@gmail.com')
     .split(',')
     .map(email => email.trim().toLowerCase())
     .filter(Boolean);

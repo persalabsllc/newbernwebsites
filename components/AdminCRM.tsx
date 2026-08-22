@@ -29,7 +29,11 @@ type Lead = {
 };
 
 const statuses = ['New', 'Contacted', 'Quoted', 'Won', 'Lost'];
-const ADMIN_EMAIL = 'kyle@newbernwebsites.com';
+const ADMIN_EMAILS = new Set([
+  'kyle@newbernwebsites.com',
+  'persalabsllc@gmail.com',
+  'cravencountysba@gmail.com',
+]);
 
 export default function AdminCRM() {
   const [user, setUser] = useState<User | null>(null);
@@ -44,7 +48,7 @@ export default function AdminCRM() {
     if (!auth) { setAuthLoading(false); return; }
     const firebaseAuth = auth;
     return onAuthStateChanged(firebaseAuth, next => {
-      if (next && next.email?.toLowerCase() !== ADMIN_EMAIL) {
+      if (next && !ADMIN_EMAILS.has(next.email?.toLowerCase() || '')) {
         setLoginError('This account is not authorized for the New Bern Websites CRM.');
         setUser(null);
         void signOut(firebaseAuth);
