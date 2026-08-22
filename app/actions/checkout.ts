@@ -22,6 +22,7 @@ export async function createCheckoutSession(productKey: string, formData: FormDa
 
   const session = await getStripe().checkout.sessions.create({
     mode: 'payment',
+    payment_method_types: ['card', 'us_bank_account'],
     customer_email: email || undefined,
     billing_address_collection: 'auto',
     line_items: [
