@@ -485,11 +485,11 @@ export async function readStoredProspectRecords() {
   return messages.map(message => ({ uid: message.uid, ...parseMessage(message.raw) }));
 }
 
-export async function readAutomationMessages(markerPrefix = '', limit = 5000) {
+export async function readAutomationMessages(markerPrefix = '', limit = 5000, headersOnly = true) {
   const messages = await imapFetchAll(
     `HEADER X-NBW-Automation-Key "${escapeImap(markerPrefix)}"`,
     limit,
-    true,
+    headersOnly,
   );
   return messages.map(message => ({ uid: message.uid, ...parseMessage(message.raw) }));
 }

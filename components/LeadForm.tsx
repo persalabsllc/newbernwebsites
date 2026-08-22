@@ -1,10 +1,8 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { db, firebaseReady } from '../lib/firebase';
 
-export default function LeadForm() {
+export default function LeadForm({ campaign = 'website' }: { campaign?: 'website' | 'captain97' }) {
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [message, setMessage] = useState('');
 
@@ -13,29 +11,29 @@ export default function LeadForm() {
     const form = event.currentTarget;
     const data = new FormData(form);
 
-    if (!firebaseReady || !db) {
-      setStatus('error');
-      setMessage('Online inquiries are being configured. Please email hello@newbernwebsites.com in the meantime.');
-      return;
-    }
-
     setStatus('sending');
     setMessage('');
 
     try {
-      await addDoc(collection(db, 'websiteLeads'), {
-        name: String(data.get('name') || '').trim(),
-        business: String(data.get('business') || '').trim(),
-        email: String(data.get('email') || '').trim(),
-        phone: String(data.get('phone') || '').trim(),
-        package: String(data.get('package') || '').trim(),
-        project: String(data.get('project') || '').trim(),
-        source: 'newbernwebsites.com',
-        createdAt: serverTimestamp(),
+      const response = await fetch('/api/inbound', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          submissionId: crypto.randomUUID(),
+          websiteFax: String(data.get('websiteFax') || ''),
+          name: String(data.get('name') || '').trim(),
+          business: String(data.get('business') || '').trim(),
+          email: String(data.get('email') || '').trim(),
+          phone: String(data.get('phone') || '').trim(),
+          package: String(data.get('package') || '').trim(),
+          project: String(data.get('project') || '').trim(),
+          campaign,
+        }),
       });
+      if (!response.ok) throw new Error('Lead intake rejected the submission.');
       form.reset();
       setStatus('sent');
-      setMessage('Thank you — your project request is in. We’ll be in touch shortly.');
+      setMessage('Thank you — your request is in. Check your inbox for a message from Kyle@NewBernWebsites.com.');
     } catch (error) {
       console.error('Lead submission failed', error);
       setStatus('error');
@@ -45,6 +43,10 @@ export default function LeadForm() {
 
   return (
     <form className="lead-form" onSubmit={handleSubmit}>
+      <label className="form-honeypot" aria-hidden="true">
+        Website fax
+        <input autoComplete="off" name="websiteFax" tabIndex={-1} />
+      </label>
       <div className="form-row">
         <label className="form-field">
           <span>Your name <i aria-hidden="true">*</i></span>

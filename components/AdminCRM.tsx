@@ -36,6 +36,14 @@ const ADMIN_EMAILS = new Set([
   'kkratoville@gmail.com',
 ]);
 
+function displaySource(lead: Lead) {
+  return lead.project?.startsWith('[Captain 97.1 campaign]') ? 'Captain 97.1' : (lead.source || '—');
+}
+
+function displayProject(lead: Lead) {
+  return lead.project?.replace(/^\[Captain 97\.1 campaign\]\s*/, '') || 'No project details provided.';
+}
+
 export default function AdminCRM() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -145,8 +153,8 @@ export default function AdminCRM() {
             {selected.email && <a href={`mailto:${selected.email}?subject=New Bern Websites`}>Email Lead</a>}
             {selected.phone && <a href={`tel:${selected.phone}`}>Call Lead</a>}
           </div>
-          <div className="detail-grid"><div><span>Email</span><strong>{selected.email || '—'}</strong></div><div><span>Phone</span><strong>{selected.phone || '—'}</strong></div><div><span>Interested In</span><strong>{selected.package || '—'}</strong></div><div><span>Source</span><strong>{selected.source || '—'}</strong></div></div>
-          <div className="project-box"><span>Project Request</span><p>{selected.project || 'No project details provided.'}</p></div>
+          <div className="detail-grid"><div><span>Email</span><strong>{selected.email || '—'}</strong></div><div><span>Phone</span><strong>{selected.phone || '—'}</strong></div><div><span>Interested In</span><strong>{selected.package || '—'}</strong></div><div><span>Source</span><strong>{displaySource(selected)}</strong></div></div>
+          <div className="project-box"><span>Project Request</span><p>{displayProject(selected)}</p></div>
           <label className="notes-box"><span>Internal Notes</span><textarea key={selected.id} defaultValue={selected.notes || ''} placeholder="Add call notes, follow-up details, quote information…" onBlur={e => saveLead({ notes: e.target.value })} /></label>
           <small className="save-note">{saving ? 'Saving…' : 'Notes save when you leave the field.'}</small>
           <OutreachComposer user={user} lead={selected} onSaved={saveLead} />

@@ -6,6 +6,7 @@ import {
   replyWindowOpen,
   withOutreachRunLock,
 } from '../../../../lib/outreach-autopilot';
+import { processInboundLeadFollowUps } from '../../../../lib/inbound-leads';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -25,10 +26,18 @@ export async function GET(request: Request) {
   try {
     const run = await withOutreachRunLock(async () => {
       const snapshot = await loadOutreachSnapshot({ includeAllInbound: false });
-      return processReplies(snapshot);
+      const [outbound, inbound] = await Promise.all([
+        processReplies(snapshot),
+        processInboundLeadFollowUps(),
+      ]);
+      return { outbound, inbound };
     });
     if (!run.acquired) return NextResponse.json({ ok: true, skipped: 'Outreach run already in progress.' });
-    return NextResponse.json({ ok: true, replyActivity: run.result.activity });
+    return NextResponse.json({
+      ok: true,
+      replyActivity: run.result.outbound.activity,
+      inboundFollowUps: run.result.inbound,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Reply check failed.';
     return NextResponse.json({ ok: false, error: message }, { status: 500 });

@@ -1160,6 +1160,14 @@ a {
   gap: 13px;
 }
 
+.form-honeypot {
+  position: absolute !important;
+  left: -10000px !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+}
+
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1269,6 +1277,80 @@ a {
   font-size: 9px !important;
   line-height: 1.5 !important;
   text-align: center;
+}
+
+.captain-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 12% 20%, rgba(217, 163, 42, 0.16), transparent 26%),
+    linear-gradient(145deg, var(--navy-ink), var(--navy) 55%, #0b4d7c);
+  color: white;
+}
+
+.captain-header,
+.captain-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 24px 6vw;
+  border-bottom: 1px solid rgba(255,255,255,.14);
+  font-size: 11px;
+  letter-spacing: .12em;
+}
+
+.captain-brand {
+  color: white;
+  text-decoration: none;
+}
+
+.captain-brand strong,
+.captain-brand span { display: block; }
+.captain-brand strong { font: 700 23px var(--font-serif); letter-spacing: .08em; }
+.captain-brand span { color: var(--gold-soft); font-size: 10px; font-weight: 900; letter-spacing: .26em; }
+
+.captain-hero {
+  display: grid;
+  max-width: 1180px;
+  margin: auto;
+  padding: 74px 6vw 82px;
+  align-items: center;
+  grid-template-columns: 1.05fr .95fr;
+  gap: clamp(36px, 7vw, 90px);
+}
+
+.captain-hero h1 {
+  max-width: 650px;
+  margin: 10px 0 22px;
+  font: 400 clamp(44px, 6vw, 72px)/1 var(--font-serif);
+  letter-spacing: -.035em;
+}
+
+.captain-hero > div:first-child > p:not(.eyebrow) {
+  max-width: 620px;
+  color: #d9e4eb;
+  font-size: 17px;
+  line-height: 1.65;
+}
+
+.captain-hero ul {
+  display: grid;
+  gap: 10px;
+  margin: 28px 0 0;
+  padding-left: 20px;
+  color: #f0d697;
+  line-height: 1.45;
+}
+
+.captain-form { max-width: 540px; }
+.captain-footer { border-top: 1px solid rgba(255,255,255,.14); border-bottom: 0; color: #c9d6de; }
+.captain-footer a { color: var(--gold-soft); font-weight: 800; text-decoration: none; }
+
+@media (max-width: 850px) {
+  .captain-header > span { display: none; }
+  .captain-hero { grid-template-columns: 1fr; padding-top: 52px; }
+  .captain-form { max-width: none; }
+  .captain-footer { align-items: flex-start; flex-direction: column; }
 }
 
 .office {
