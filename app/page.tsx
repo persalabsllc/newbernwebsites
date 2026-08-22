@@ -88,7 +88,8 @@ const packages = [
   {
     name: 'Turnkey Website',
     price: '$2,500',
-    monthly: '$625/mo',
+    deposit: '$1,250 to start',
+    balance: '$1,250 before launch',
     desc: 'A complete business website from concept to launch.',
     icon: 'layout' as IconName,
     items: [
@@ -103,7 +104,8 @@ const packages = [
   {
     name: 'Website + Professional Media',
     price: '$3,500',
-    monthly: '$875/mo',
+    deposit: '$1,750 to start',
+    balance: '$1,750 before launch',
     featured: true,
     desc: 'Everything in Turnkey, plus we come to your business and capture it properly.',
     icon: 'camera' as IconName,
@@ -172,7 +174,7 @@ export default function Home() {
             <a className="button gold" href="#contact">Start Your Website <span aria-hidden="true">→</span></a>
             <a className="button outline-light" href="#pricing">See Packages</a>
           </div>
-          <p className="micro">Starting at <strong>$625/month</strong> with our simple payment plan.</p>
+          <p className="micro"><strong>50% to start.</strong> Final 50% before launch.</p>
         </div>
         <div className="local-note"><em>Local. Professional. Trusted.</em><span>New Bern, NC</span></div>
       </section>
@@ -205,8 +207,9 @@ export default function Home() {
                 <h3>{item.name}</h3>
                 <p className="desc">{item.desc}</p>
                 <div className="price">{item.price}</div>
-                <small>or 4 payments of</small>
-                <strong className="monthly">{item.monthly}</strong>
+                <small>Simple 50/50 payment plan</small>
+                <strong className="monthly">{item.deposit}</strong>
+                <span className="balance-copy">{item.balance}</span>
                 <ul>{item.items.map(listItem => <li key={listItem}><Icon name="check" />{listItem}</li>)}</ul>
                 <a className="button package-button" href="#contact">Get Started <span aria-hidden="true">→</span></a>
               </article>
@@ -227,10 +230,10 @@ export default function Home() {
         <div className="payment-bar">
           <div>
             <span className="payment-icon"><Icon name="calendar" /></span>
-            <span><strong>Simple Payment Plan</strong><small>25% down, then 3 equal monthly payments. No complicated financing.</small></span>
+            <span><strong>Simple Payment Plan</strong><small>50% kickoff deposit, then the final 50% after approval and before launch.</small></span>
           </div>
-          <div><span>$2,500 →</span><strong>$625/month</strong></div>
-          <div><span>$3,500 →</span><strong>$875/month</strong></div>
+          <div><span>$2,500 →</span><strong>2 × $1,250</strong></div>
+          <div><span>$3,500 →</span><strong>2 × $1,750</strong></div>
         </div>
       </section>
 
