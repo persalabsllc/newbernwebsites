@@ -20,7 +20,7 @@ service cloud.firestore {
           'kyle@newbernwebsites.com',
           'persalabsllc@gmail.com',
           'cravencountysba@gmail.com',
-          'kkkratoville@gmail.com'
+          'kkratoville@gmail.com'
         ];
     }
 
