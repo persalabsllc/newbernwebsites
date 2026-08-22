@@ -3,27 +3,21 @@ import Stripe from 'stripe';
 let stripeClient: Stripe | null = null;
 
 function stripeSecretKey() {
-  if (process.env.VERCEL_ENV === 'production') {
-    const liveKey = process.env.STRIPE_LIVE_SECRET_KEY;
+  const secretKey = process.env.STRIPE_SECRET_KEY;
 
-    if (!liveKey?.startsWith('sk_live_')) {
-      throw new Error('STRIPE_LIVE_SECRET_KEY is not configured for production.');
-    }
-
-    return liveKey;
+  if (!secretKey) {
+    throw new Error('STRIPE_SECRET_KEY is not configured.');
   }
 
-  const testKey = process.env.STRIPE_SECRET_KEY;
-
-  if (!testKey) {
-    throw new Error('STRIPE_SECRET_KEY is not configured for preview or development.');
+  if (process.env.VERCEL_ENV === 'production' && !secretKey.startsWith('sk_live_')) {
+    throw new Error('Production deployments must use a Stripe live key.');
   }
 
-  if (process.env.VERCEL_ENV === 'preview' && !testKey.startsWith('sk_test_')) {
+  if (process.env.VERCEL_ENV === 'preview' && !secretKey.startsWith('sk_test_')) {
     throw new Error('Preview deployments must use a Stripe test key.');
   }
 
-  return testKey;
+  return secretKey;
 }
 
 export function getStripe() {
