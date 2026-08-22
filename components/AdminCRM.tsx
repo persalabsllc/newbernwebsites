@@ -5,6 +5,7 @@ import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User } from 'f
 import { collection, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { auth, db, firebaseReady } from '../lib/firebase';
 import MailAutomationPanel from './MailAutomationPanel';
+import OutreachComposer from './OutreachComposer';
 
 type Lead = {
   id: string;
@@ -17,6 +18,10 @@ type Lead = {
   source?: string;
   status?: string;
   notes?: string;
+  outreachSubject?: string;
+  outreachBody?: string;
+  outreachStatus?: string;
+  outreachSentAt?: string;
   createdAt?: { toDate?: () => Date };
 };
 
@@ -117,6 +122,7 @@ export default function AdminCRM() {
           <div className="project-box"><span>Project Request</span><p>{selected.project || 'No project details provided.'}</p></div>
           <label className="notes-box"><span>Internal Notes</span><textarea key={selected.id} defaultValue={selected.notes || ''} placeholder="Add call notes, follow-up details, quote information…" onBlur={e => saveLead({ notes: e.target.value })} /></label>
           <small className="save-note">{saving ? 'Saving…' : 'Notes save when you leave the field.'}</small>
+          <OutreachComposer user={user} lead={selected} onSaved={saveLead} />
         </>}
       </section>
     </div>
