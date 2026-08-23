@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User } from 'firebase/auth';
+import { onAuthStateChanged, sendPasswordResetEmail, signInWithEmailAndPassword, signOut, User } from 'firebase/auth';
 import { collection, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { auth, db, firebaseReady } from '../lib/firebase';
 import MailAutomationPanel from './MailAutomationPanel';
@@ -48,6 +48,8 @@ export default function AdminCRM() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [loginError, setLoginError] = useState('');
+  const [loginEmail, setLoginEmail] = useState('');
+  const [resetStatus, setResetStatus] = useState('');
   const [leads, setLeads] = useState<Lead[]>([]);
   const [selectedId, setSelectedId] = useState<string>('');
   const [filter, setFilter] = useState('All');
@@ -86,10 +88,35 @@ export default function AdminCRM() {
     if (!auth) return;
     const data = new FormData(event.currentTarget);
     setLoginError('');
+    setResetStatus('');
     try {
       await signInWithEmailAndPassword(auth, String(data.get('email') || ''), String(data.get('password') || ''));
     } catch {
       setLoginError('Sign in failed. Check your email and password.');
+    }
+  }
+
+  async function resetPassword() {
+    if (!auth) return;
+    const email = loginEmail.trim();
+    setLoginError('');
+    setResetStatus('');
+
+    if (!email) {
+      setLoginError('Enter your admin email first.');
+      return;
+    }
+
+    if (!ADMIN_EMAILS.has(email.toLowerCase())) {
+      setLoginError('Enter an authorized New Bern Websites admin email.');
+      return;
+    }
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setResetStatus('Password reset email sent. Check your inbox and spam folder.');
+    } catch {
+      setLoginError('Could not send the reset email. Check the address and try again.');
     }
   }
 
@@ -109,9 +136,18 @@ export default function AdminCRM() {
       <a href="/" className="crm-brand">NEW BERN <span>WEBSITES</span></a>
       <p className="crm-kicker">PRIVATE CRM</p>
       <h1>Sign in to manage leads.</h1>
-      <input name="email" type="email" placeholder="Email address" required />
+      <input name="email" type="email" placeholder="Email address" value={loginEmail} onChange={event => setLoginEmail(event.target.value)} required />
       <input name="password" type="password" placeholder="Password" required />
       <button className="button primary">Sign In</button>
+      <button
+        type="button"
+        className="crm-back"
+        style={{ border: 0, background: 'transparent', padding: 0, textAlign: 'left', cursor: 'pointer' }}
+        onClick={resetPassword}
+      >
+        Forgot password?
+      </button>
+      {resetStatus && <p className="form-status">{resetStatus}</p>}
       {loginError && <p className="form-status error">{loginError}</p>}
       <a href="/" className="crm-back">← Back to website</a>
     </form>
