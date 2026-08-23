@@ -11,7 +11,10 @@ type MailSettings = {
 
 function settings(): MailSettings {
   const username = process.env.MAIL_USERNAME?.trim();
-  const password = process.env.MAIL_APP_PASSWORD;
+  // Deployment dashboards and CLI input can preserve an accidental trailing
+  // newline. It is never part of a Private Email app password and breaks both
+  // SMTP AUTH and the raw IMAP LOGIN command.
+  const password = process.env.MAIL_APP_PASSWORD?.trim();
   const smtpHost = process.env.MAIL_SMTP_HOST?.trim();
   const smtpPort = Number(process.env.MAIL_SMTP_PORT);
   const imapHost = process.env.MAIL_IMAP_HOST?.trim();
@@ -22,6 +25,22 @@ function settings(): MailSettings {
   }
 
   return { username, password, smtpHost, smtpPort, imapHost, imapPort };
+}
+
+function isTransientImapError(error: unknown) {
+  const value = error as NodeJS.ErrnoException;
+  return ['ECONNRESET', 'ECONNREFUSED', 'EHOSTUNREACH', 'ENETUNREACH', 'ETIMEDOUT'].includes(value?.code || '')
+    || /connection timed out/i.test(value?.message || '');
+}
+
+async function withImapRetry<T>(operation: () => Promise<T>) {
+  try {
+    return await operation();
+  } catch (error) {
+    if (!isTransientImapError(error)) throw error;
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return operation();
+  }
 }
 
 function smtpConversation(commands: Array<{ command: string; expect: number }>, host: string, port: number) {
@@ -264,7 +283,7 @@ export async function sendOwnerAlert(input: { subject: string; body: string; mar
   });
 }
 
-export async function readInboxStatus() {
+async function readInboxStatusOnce() {
   const config = settings();
   return new Promise<{ messages: number; unseen: number }>((resolve, reject) => {
     const socket = tls.connect({ host: config.imapHost, port: config.imapPort, servername: config.imapHost, rejectUnauthorized: true });
@@ -314,11 +333,15 @@ export async function readInboxStatus() {
   });
 }
 
+export function readInboxStatus() {
+  return withImapRetry(readInboxStatusOnce);
+}
+
 function escapeImap(value: string) {
   return value.replace(/(["\\])/g, '\\$1');
 }
 
-async function imapExchange(input: { search: string; fetchLatest?: boolean }) {
+async function imapExchangeOnce(input: { search: string; fetchLatest?: boolean }) {
   const config = settings();
   return new Promise<{ ids: number[]; raw?: string }>((resolve, reject) => {
     const socket = tls.connect({ host: config.imapHost, port: config.imapPort, servername: config.imapHost, rejectUnauthorized: true });
@@ -386,7 +409,11 @@ async function imapExchange(input: { search: string; fetchLatest?: boolean }) {
   });
 }
 
-async function imapFetchAll(search: string, limit = 100, headersOnly = false) {
+function imapExchange(input: { search: string; fetchLatest?: boolean }) {
+  return withImapRetry(() => imapExchangeOnce(input));
+}
+
+async function imapFetchAllOnce(search: string, limit = 100, headersOnly = false) {
   const config = settings();
   return new Promise<Array<{ uid: number; raw: string }>>((resolve, reject) => {
     const socket = tls.connect({ host: config.imapHost, port: config.imapPort, servername: config.imapHost, rejectUnauthorized: true });
@@ -459,6 +486,10 @@ async function imapFetchAll(search: string, limit = 100, headersOnly = false) {
       }
     });
   });
+}
+
+function imapFetchAll(search: string, limit = 100, headersOnly = false) {
+  return withImapRetry(() => imapFetchAllOnce(search, limit, headersOnly));
 }
 
 function parseMessage(raw: string) {
