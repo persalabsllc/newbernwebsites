@@ -41,6 +41,24 @@ type Result = {
   background?: { schedule: string; firstTouchLimit: number; replyChecks: string };
 };
 
+type ResearchRun = {
+  id: string;
+  state: 'running' | 'completed' | 'warning' | 'failed';
+  source: 'cron' | 'manual';
+  startedAt: string;
+  finishedAt?: string;
+  error?: string;
+  result?: {
+    discovered: number;
+    eligible: number;
+    checked: number;
+    saved: number;
+    skipped: number;
+    totalProspects: number;
+    rejectionCounts: Record<string, number>;
+  };
+};
+
 const filters = ['All', 'Pending email', 'Contacted', 'Replied', 'Needs Kyle'];
 
 export default function ProspectPipeline({ user }: { user: User }) {
@@ -51,6 +69,7 @@ export default function ProspectPipeline({ user }: { user: User }) {
   const [addStatus, setAddStatus] = useState('');
   const [researching, setResearching] = useState(false);
   const [researchStatus, setResearchStatus] = useState('');
+  const [researchRun, setResearchRun] = useState<ResearchRun | null>(null);
 
   async function load() {
     setLoading(true);
@@ -68,7 +87,22 @@ export default function ProspectPipeline({ user }: { user: User }) {
     }
   }
 
-  useEffect(() => { void load(); }, [user]);
+  async function readResearchRun(runId = '') {
+    const token = await user.getIdToken();
+    const response = await fetch(`/api/automation/research${runId ? `?runId=${encodeURIComponent(runId)}` : ''}`, {
+      headers: { authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || 'Could not read research status.');
+    setResearchRun(payload.run || null);
+    return (payload.run || null) as ResearchRun | null;
+  }
+
+  useEffect(() => {
+    void load();
+    void readResearchRun().catch(() => undefined);
+  }, [user]);
 
   async function addProspect(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -97,7 +131,7 @@ export default function ProspectPipeline({ user }: { user: User }) {
 
   async function runResearch() {
     setResearching(true);
-    setResearchStatus('Scanning public business listings and verifying websites, public email addresses, and specific audit findings…');
+    setResearchStatus('Starting a background research batch…');
     try {
       const token = await user.getIdToken();
       const response = await fetch('/api/automation/research', {
@@ -106,8 +140,27 @@ export default function ProspectPipeline({ user }: { user: User }) {
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Research run failed.');
-      setResearchStatus(`Research complete: ${payload.result.saved} verified prospects added after checking ${payload.result.checked} candidate websites.`);
-      await load();
+      const started = payload.run as ResearchRun;
+      setResearchRun(started);
+      setResearchStatus(payload.accepted === false
+        ? 'A research batch is already running. Watching its progress…'
+        : 'Research is running safely in the background. You can leave this page if needed.');
+
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        await new Promise(resolve => setTimeout(resolve, 8_000));
+        const current = await readResearchRun(started.id);
+        if (!current || current.id !== started.id || current.state === 'running') continue;
+        if (current.state === 'completed') {
+          setResearchStatus(`Research complete: ${current.result?.saved || 0} verified prospects added after checking ${current.result?.checked || 0} candidate websites.`);
+        } else if (current.state === 'warning') {
+          setResearchStatus(`Research warning: no new prospects were added after checking ${current.result?.checked || 0} candidate websites.`);
+        } else {
+          setResearchStatus(current.error || 'Research run failed.');
+        }
+        await load();
+        return;
+      }
+      setResearchStatus('Research is still running in the background. Its saved report will appear here when complete.');
     } catch (error) {
       setResearchStatus(error instanceof Error ? error.message : 'Research run failed.');
     } finally {
@@ -161,7 +214,18 @@ export default function ProspectPipeline({ user }: { user: User }) {
       </div>
       <div className="pipeline-actions"><button onClick={() => void runResearch()} disabled={researching}>{researching ? 'Researching…' : 'Run 75-mile research'}</button><button onClick={() => void load()} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh status'}</button></div>
     </div>
-    {researchStatus && <p className={`form-status ${/failed|could not|returned/i.test(researchStatus) ? 'error' : 'sent'}`}>{researchStatus}</p>}
+    {researchStatus && <p className={`form-status ${/failed|could not|returned|warning|no new/i.test(researchStatus) ? 'error' : 'sent'}`}>{researchStatus}</p>}
+    {researchRun && <div className="report-summary" aria-live="polite">
+      <span><strong>{researchRun.state === 'running' ? '…' : researchRun.result?.saved ?? 0}</strong> added</span>
+      <span><strong>{researchRun.result?.checked ?? 0}</strong> checked</span>
+      <span><strong>{researchRun.result?.skipped ?? 0}</strong> rejected</span>
+      <span><strong>{researchRun.result?.eligible ?? 0}</strong> eligible listings</span>
+      <span><strong>{researchRun.result?.totalProspects ?? prospects.length}</strong> total queue</span>
+      <span><strong>{researchRun.state}</strong> latest research</span>
+    </div>}
+    {researchRun?.result && Object.keys(researchRun.result.rejectionCounts).length > 0 && <p className="pipeline-empty">
+      Rejection detail: {Object.entries(researchRun.result.rejectionCounts).map(([reason, count]) => `${reason.replace(/-/g, ' ')}: ${count}`).join(' · ')}
+    </p>}
 
     <div className="pipeline-stats">
       <article><span>Identified</span><strong>{prospects.length}</strong></article>
