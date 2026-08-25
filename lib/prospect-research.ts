@@ -16,6 +16,30 @@ type OverpassElement = {
   center?: { lat?: number; lon?: number };
 };
 
+export type ProspectResearchOptions = {
+  limit?: number;
+  maxChecked?: number;
+  startOffset?: number;
+};
+
+export type ProspectResearchResult = {
+  radiusMiles: number;
+  discovered: number;
+  eligible: number;
+  checked: number;
+  saved: number;
+  skipped: number;
+  rejectionCounts: Record<string, number>;
+  startOffset: number;
+  nextOffset: number;
+  totalProspects: number;
+  prospects: Array<{ key: string; business: string; location?: string; category?: string }>;
+};
+
+type CandidateResult =
+  | { lead: StoredOutreachLead; reason?: never }
+  | { lead: null; reason: string };
+
 const excludedMailboxPrefixes = new Set(['example', 'noreply', 'no-reply', 'donotreply', 'webmaster']);
 const nationalChains = /\b(walmart|walgreens|cvs|mcdonald|starbucks|subway|domino|lowe'?s|home depot|dollar general|food lion|autozone|o'?reilly|enterprise rent-a-car)\b/i;
 
@@ -180,14 +204,15 @@ function observationFrom(findings: AuditFinding[]) {
   return findings[0].detail.replace(/\s+/g, ' ').trim().slice(0, 420);
 }
 
-async function candidateToLead(element: OverpassElement): Promise<StoredOutreachLead | null> {
+async function candidateToLead(element: OverpassElement): Promise<CandidateResult> {
   const tags = element.tags || {};
   const business = String(tags.name || '').trim().slice(0, 120);
   const website = normalizeWebsite(tags.website || tags['contact:website']);
-  if (!business || !website || nationalChains.test(business)) return null;
+  if (!business || !website) return { lead: null, reason: 'missing-business-or-website' };
+  if (nationalChains.test(business)) return { lead: null, reason: 'national-chain' };
 
   const homepage = await safeHtml(website);
-  if (!homepage) return null;
+  if (!homepage) return { lead: null, reason: 'website-unavailable' };
   let emails = [tags.email, tags['contact:email']].filter(Boolean).flatMap(value => String(value).split(/[;,]/)).map(normalizeEmail).filter(validPublicEmail);
   emails.push(...extractEmails(homepage.html));
   const contact = contactUrl(homepage.html, homepage.finalUrl);
@@ -201,7 +226,7 @@ async function candidateToLead(element: OverpassElement): Promise<StoredOutreach
   }
   emails = [...new Set(emails)];
   const email = preferredEmail(emails, homepage.finalUrl);
-  if (!email) return null;
+  if (!email) return { lead: null, reason: 'no-public-email' };
 
   const category = businessCategory(tags);
   const findings = auditSite({ html: homepage.html, finalUrl: homepage.finalUrl, business, category });
@@ -209,7 +234,7 @@ async function candidateToLead(element: OverpassElement): Promise<StoredOutreach
   const keySeed = `${business}|${email}|${homepage.finalUrl}`;
   const key = `research-${cleanProspectKey(business)}-${createHash('sha256').update(keySeed).digest('hex').slice(0, 10)}`;
   const mediaCategory = /restaurant|cafe|bar|hotel|marina|boat|construction|builder|landscap|pool|photograph|salon|spa/i.test(`${category} ${business}`);
-  return {
+  return { lead: {
     key,
     business,
     email,
@@ -224,7 +249,7 @@ async function candidateToLead(element: OverpassElement): Promise<StoredOutreach
     location: locationLabel(tags),
     category: readableCategory(category),
     auditFindings: findings,
-  };
+  } };
 }
 
 async function overpassCandidates() {
@@ -248,14 +273,18 @@ async function overpassCandidates() {
   return data.elements || [];
 }
 
-export async function researchProspects(limit = 60) {
+export async function researchProspects(options: number | ProspectResearchOptions = {}): Promise<ProspectResearchResult> {
+  const normalized = typeof options === 'number' ? { limit: options } : options;
+  const limit = Math.max(1, Math.min(60, normalized.limit || 12));
+  const maxChecked = Math.max(limit, Math.min(180, normalized.maxChecked || 60));
+  const requestedOffset = Math.max(0, Math.floor(normalized.startOffset || 0));
   const existing = await getAllProspects();
   const existingEmails = new Set(existing.map(lead => lead.email.toLowerCase()));
   const existingHosts = new Set(existing.map(lead => {
     try { return new URL(lead.sourceUrl).hostname.replace(/^www\./, ''); } catch { return ''; }
   }));
   const elements = await overpassCandidates();
-  const candidates = elements
+  const orderedCandidates = elements
     .filter(element => {
       const website = normalizeWebsite(element.tags?.website || element.tags?.['contact:website']);
       if (!website) return false;
@@ -263,28 +292,47 @@ export async function researchProspects(limit = 60) {
     })
     .toSorted((a, b) => String(a.tags?.name || '').localeCompare(String(b.tags?.name || '')));
 
+  const startOffset = orderedCandidates.length ? requestedOffset % orderedCandidates.length : 0;
+  const candidates = orderedCandidates.length
+    ? [...orderedCandidates.slice(startOffset), ...orderedCandidates.slice(0, startOffset)]
+    : [];
+
   const saved: StoredOutreachLead[] = [];
   let checked = 0;
-  for (let index = 0; index < candidates.length && saved.length < limit; index += 6) {
-    const batch = candidates.slice(index, index + 6);
-    const leads = await Promise.all(batch.map(async candidate => {
-      try { return await candidateToLead(candidate); } catch { return null; }
+  const rejectionCounts: Record<string, number> = {};
+  const reject = (reason: string) => { rejectionCounts[reason] = (rejectionCounts[reason] || 0) + 1; };
+  for (let index = 0; index < candidates.length && saved.length < limit && checked < maxChecked; index += 6) {
+    const batch = candidates.slice(index, Math.min(index + 6, index + (maxChecked - checked)));
+    const results = await Promise.all(batch.map(async candidate => {
+      try { return await candidateToLead(candidate); } catch { return { lead: null, reason: 'fetch-error' } as CandidateResult; }
     }));
     checked += batch.length;
-    const unique = leads.filter((lead): lead is StoredOutreachLead => Boolean(lead)).filter(lead => {
+    for (const result of results) if (!result.lead) reject(result.reason);
+    const unique = results.flatMap(result => result.lead ? [result.lead] : []).filter(lead => {
       const email = lead.email.toLowerCase();
-      if (existingEmails.has(email)) return false;
+      if (existingEmails.has(email)) {
+        reject('duplicate-email');
+        return false;
+      }
       existingEmails.add(email);
       return true;
     });
-    await Promise.all(unique.map(saveManualProspect));
+    // Private Email is reliable with bounded sequential SMTP writes; opening a
+    // dozen simultaneous authenticated connections can trigger provider limits.
+    for (const lead of unique) await saveManualProspect(lead);
     saved.push(...unique);
   }
   return {
     radiusMiles: 75,
     discovered: elements.length,
+    eligible: orderedCandidates.length,
     checked,
     saved: saved.length,
+    skipped: checked - saved.length,
+    rejectionCounts,
+    startOffset,
+    nextOffset: orderedCandidates.length ? (startOffset + checked) % orderedCandidates.length : 0,
+    totalProspects: existing.length + saved.length,
     prospects: saved.map(lead => ({ key: lead.key, business: lead.business, location: lead.location, category: lead.category })),
   };
 }
