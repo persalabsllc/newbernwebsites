@@ -9,6 +9,7 @@ import {
   sendNextFirstTouches,
   withOutreachRunLock,
 } from '../../../../lib/outreach-autopilot';
+import { organizeOutboundCopies } from '../../../../lib/mail-server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -27,11 +28,22 @@ export async function GET(request: Request) {
 
   try {
     const run = await withOutreachRunLock(async () => {
+      let organizedCopies = 0;
+      try {
+        organizedCopies = await organizeOutboundCopies();
+      } catch (error) {
+        // Inbox organization must never block prospect delivery. New messages
+        // still file directly into Sent; a future run can retry old copies.
+        console.warn(JSON.stringify({
+          event: 'outbound-copy-cleanup-failed',
+          error: error instanceof Error ? error.message : 'Outbound-copy cleanup failed.',
+        }));
+      }
       const snapshot = await loadOutreachSnapshot();
       const replies = await processReplies(snapshot);
       const followUps = await sendDueFollowUps(snapshot, replies.suppressedLeadKeys);
       const firstTouches = await sendNextFirstTouches(snapshot, replies.suppressedLeadKeys);
-      return { replyActivity: replies.activity, followUps, firstTouches };
+      return { organizedCopies, replyActivity: replies.activity, followUps, firstTouches };
     });
     if (!run.acquired) return NextResponse.json({ ok: true, skipped: 'Outreach run already in progress.' });
     return NextResponse.json({ ok: true, ...run.result, limits: getOutreachLimits() });
