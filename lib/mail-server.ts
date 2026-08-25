@@ -512,7 +512,9 @@ function parseMessage(raw: string) {
 }
 
 export async function readStoredProspectRecords() {
-  const messages = await imapFetchAll('SUBJECT "[NBW Prospect]"');
+  // Prospect records are append-only and can exceed the generic 100-message
+  // safety default during an active outreach sprint.
+  const messages = await imapFetchAll('SUBJECT "[NBW Prospect]"', 5000);
   return messages.map(message => ({ uid: message.uid, ...parseMessage(message.raw) }));
 }
 
