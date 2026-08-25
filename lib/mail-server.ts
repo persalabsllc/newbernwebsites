@@ -107,9 +107,23 @@ type SendPurpose = 'self-test' | 'outreach' | 'reply' | 'internal';
 type SendOptions = {
   purpose: SendPurpose;
   marker?: string;
-  copyToSelf?: boolean;
+  storeInSent?: boolean;
   replyToMessageId?: string;
 };
+
+async function deliverRawMessage(config: MailSettings, recipients: string[], rawMessage: string) {
+  await smtpConversation([
+    { command: 'EHLO newbernwebsites.com', expect: 250 },
+    { command: 'AUTH LOGIN', expect: 334 },
+    { command: Buffer.from(config.username).toString('base64'), expect: 334 },
+    { command: Buffer.from(config.password).toString('base64'), expect: 235 },
+    { command: `MAIL FROM:<${config.username}>`, expect: 250 },
+    ...recipients.map(recipient => ({ command: `RCPT TO:<${recipient}>`, expect: 250 })),
+    { command: 'DATA', expect: 354 },
+    { command: `${dotStuff(rawMessage)}\r\n.`, expect: 250 },
+    { command: 'QUIT', expect: 221 },
+  ], config.smtpHost, config.smtpPort);
+}
 
 async function sendPlainText(to: string, subject: string, body: string, options: SendOptions) {
   const config = settings();
@@ -117,12 +131,13 @@ async function sendPlainText(to: string, subject: string, body: string, options:
   if (!subject.trim() || subject.length > 120) throw new Error('Subject must be between 1 and 120 characters.');
   if (!body.trim() || body.length > 5000) throw new Error('Message must be between 1 and 5,000 characters.');
 
+  const messageId = `<${options.purpose}-${Date.now()}-${Math.random().toString(36).slice(2)}@newbernwebsites.com>`;
   const headers = [
     `From: New Bern Websites <${cleanHeader(config.username)}>`,
     `Reply-To: ${cleanHeader(config.username)}`,
     `To: ${cleanHeader(to)}`,
     `Date: ${new Date().toUTCString()}`,
-    `Message-ID: <${options.purpose}-${Date.now()}-${Math.random().toString(36).slice(2)}@newbernwebsites.com>`,
+    `Message-ID: ${messageId}`,
     `Subject: ${cleanHeader(subject)}`,
     'MIME-Version: 1.0',
     'Content-Type: text/plain; charset=UTF-8',
@@ -138,20 +153,29 @@ async function sendPlainText(to: string, subject: string, body: string, options:
     headers.push(`In-Reply-To: ${messageId}`, `References: ${messageId}`);
   }
 
-  const message = dotStuff([...headers, '', body].join('\r\n'));
-  const recipients = [to];
-  if (options.copyToSelf && to.toLowerCase() !== config.username.toLowerCase()) recipients.push(config.username);
-  await smtpConversation([
-    { command: 'EHLO newbernwebsites.com', expect: 250 },
-    { command: 'AUTH LOGIN', expect: 334 },
-    { command: Buffer.from(config.username).toString('base64'), expect: 334 },
-    { command: Buffer.from(config.password).toString('base64'), expect: 235 },
-    { command: `MAIL FROM:<${config.username}>`, expect: 250 },
-    ...recipients.map(recipient => ({ command: `RCPT TO:<${recipient}>`, expect: 250 })),
-    { command: 'DATA', expect: 354 },
-    { command: `${message}\r\n.`, expect: 250 },
-    { command: 'QUIT', expect: 221 },
-  ], config.smtpHost, config.smtpPort);
+  const rawMessage = [...headers, '', body].join('\r\n');
+  // The external recipient is the only SMTP envelope recipient. A Sent-folder
+  // copy is filed separately over IMAP so tracking never fills the Inbox.
+  await deliverRawMessage(config, [to], rawMessage);
+  if (options.storeInSent && to.toLowerCase() !== config.username.toLowerCase()) {
+    try {
+      await appendSentMessage(rawMessage);
+    } catch (appendError) {
+      // Delivery already succeeded. Preserve the exact Message-ID and marker in
+      // a self-copy only when Sent filing fails so the next cron cannot resend.
+      try {
+        await deliverRawMessage(config, [config.username], rawMessage);
+      } catch (copyError) {
+        console.error(JSON.stringify({
+          event: 'sent-copy-failed',
+          marker: options.marker || '',
+          appendError: appendError instanceof Error ? appendError.message : 'Sent append failed.',
+          copyError: copyError instanceof Error ? copyError.message : 'Tracking copy failed.',
+          messageId,
+        }));
+      }
+    }
+  }
 }
 
 export async function sendOneOffEmail(input: { to: string; subject: string; body: string }) {
@@ -159,7 +183,7 @@ export async function sendOneOffEmail(input: { to: string; subject: string; body
   await sendPlainText(input.to.trim().toLowerCase(), input.subject.trim(), input.body.trim(), {
     purpose: 'outreach',
     marker,
-    copyToSelf: true,
+    storeInSent: true,
   });
   return marker;
 }
@@ -225,7 +249,7 @@ function assertLinkFreeOutreach(body: string) {
 export async function sendProspectEmail(input: { to: string; subject: string; body: string }) {
   assertLinkFreeOutreach(input.body);
 
-  await sendPlainText(input.to.trim().toLowerCase(), input.subject.trim(), `${input.body.trim()}${outreachFooter()}`, { purpose: 'outreach' });
+  await sendPlainText(input.to.trim().toLowerCase(), input.subject.trim(), `${input.body.trim()}${outreachFooter()}`, { purpose: 'outreach', storeInSent: true });
 }
 
 export async function sendQueuedProspectEmail(input: { to: string; subject: string; body: string; marker: string }) {
@@ -235,7 +259,7 @@ export async function sendQueuedProspectEmail(input: { to: string; subject: stri
     input.to.trim().toLowerCase(),
     input.subject.trim(),
     `${input.body.trim()}${outreachFooter()}`,
-    { purpose: 'outreach', marker: input.marker, copyToSelf: true },
+    { purpose: 'outreach', marker: input.marker, storeInSent: true },
   );
 }
 
@@ -254,7 +278,7 @@ export async function sendFollowUpEmail(input: {
     {
       purpose: 'outreach',
       marker: input.marker,
-      copyToSelf: true,
+      storeInSent: true,
       replyToMessageId: input.replyToMessageId,
     },
   );
@@ -270,7 +294,7 @@ export async function sendAutomatedReply(input: {
   await sendPlainText(input.to.trim().toLowerCase(), input.subject.trim(), input.body.trim(), {
     purpose: 'reply',
     marker: input.marker,
-    copyToSelf: true,
+    storeInSent: true,
     replyToMessageId: input.replyToMessageId,
   });
 }
@@ -341,7 +365,133 @@ function escapeImap(value: string) {
   return value.replace(/(["\\])/g, '\\$1');
 }
 
-async function imapExchangeOnce(input: { search: string; fetchLatest?: boolean }) {
+async function appendSentMessageOnce(rawMessage: string) {
+  const config = settings();
+  return new Promise<void>((resolve, reject) => {
+    const socket = tls.connect({ host: config.imapHost, port: config.imapPort, servername: config.imapHost, rejectUnauthorized: true });
+    let buffer = '';
+    let settled = false;
+    let stage: 'greeting' | 'login' | 'append-ready' | 'append' | 'logout' = 'greeting';
+
+    const finish = (error?: Error) => {
+      if (settled) return;
+      settled = true;
+      socket.end();
+      if (error) reject(error); else resolve();
+    };
+
+    const timer = setTimeout(() => finish(new Error('IMAP Sent-folder append timed out.')), 20_000);
+    socket.on('error', error => { clearTimeout(timer); finish(error); });
+    socket.on('data', chunk => {
+      buffer += chunk.toString('utf8');
+      if (stage === 'greeting' && buffer.includes('* OK')) {
+        stage = 'login';
+        socket.write(`A1 LOGIN "${escapeImap(config.username)}" "${escapeImap(config.password)}"\r\n`);
+      }
+      if (stage === 'login' && /A1 OK/i.test(buffer)) {
+        stage = 'append-ready';
+        buffer = '';
+        socket.write(`A2 APPEND "Sent" (\\Seen) {${Buffer.byteLength(rawMessage, 'utf8')}}\r\n`);
+      }
+      if (stage === 'append-ready' && /\+(?: |\r|\n)/.test(buffer)) {
+        stage = 'append';
+        buffer = '';
+        socket.write(`${rawMessage}\r\n`);
+      }
+      if (stage === 'append' && /A2 OK/i.test(buffer)) {
+        stage = 'logout';
+        socket.write('A3 LOGOUT\r\n');
+      }
+      if (stage === 'logout' && /A3 OK/i.test(buffer)) {
+        clearTimeout(timer);
+        finish();
+      }
+      if (/A[1-3] (NO|BAD)/i.test(buffer)) {
+        clearTimeout(timer);
+        finish(new Error('IMAP rejected the Sent-folder append.'));
+      }
+    });
+  });
+}
+
+function appendSentMessage(rawMessage: string) {
+  return withImapRetry(() => appendSentMessageOnce(rawMessage));
+}
+
+async function moveInboxMessagesToSentOnce(search: string) {
+  const config = settings();
+  return new Promise<number>((resolve, reject) => {
+    const socket = tls.connect({ host: config.imapHost, port: config.imapPort, servername: config.imapHost, rejectUnauthorized: true });
+    let buffer = '';
+    let settled = false;
+    let ids: number[] = [];
+    let stage: 'greeting' | 'login' | 'select' | 'search' | 'copy' | 'delete' | 'expunge' | 'logout' = 'greeting';
+
+    const finish = (error?: Error) => {
+      if (settled) return;
+      settled = true;
+      socket.end();
+      if (error) reject(error); else resolve(ids.length);
+    };
+
+    const timer = setTimeout(() => finish(new Error('IMAP outbound-copy cleanup timed out.')), 25_000);
+    socket.on('error', error => { clearTimeout(timer); finish(error); });
+    socket.on('data', chunk => {
+      buffer += chunk.toString('utf8');
+      if (stage === 'greeting' && buffer.includes('* OK')) {
+        stage = 'login';
+        socket.write(`A1 LOGIN "${escapeImap(config.username)}" "${escapeImap(config.password)}"\r\n`);
+      }
+      if (stage === 'login' && /A1 OK/i.test(buffer)) {
+        stage = 'select';
+        socket.write('A2 SELECT INBOX\r\n');
+      }
+      if (stage === 'select' && /A2 OK/i.test(buffer)) {
+        stage = 'search';
+        socket.write(`A3 UID SEARCH ${search}\r\n`);
+      }
+      if (stage === 'search' && /A3 OK/i.test(buffer)) {
+        const searchLine = buffer.match(/\* SEARCH([^\r\n]*)/i)?.[1] || '';
+        ids = searchLine.trim().split(/\s+/).filter(Boolean).map(Number).filter(Number.isFinite);
+        if (!ids.length) {
+          stage = 'logout';
+          socket.write('A7 LOGOUT\r\n');
+        } else {
+          stage = 'copy';
+          socket.write(`A4 UID COPY ${ids.join(',')} "Sent"\r\n`);
+        }
+      }
+      if (stage === 'copy' && /A4 OK/i.test(buffer)) {
+        stage = 'delete';
+        socket.write(`A5 UID STORE ${ids.join(',')} +FLAGS.SILENT (\\Deleted)\r\n`);
+      }
+      if (stage === 'delete' && /A5 OK/i.test(buffer)) {
+        stage = 'expunge';
+        socket.write('A6 EXPUNGE\r\n');
+      }
+      if (stage === 'expunge' && /A6 OK/i.test(buffer)) {
+        stage = 'logout';
+        socket.write('A7 LOGOUT\r\n');
+      }
+      if (stage === 'logout' && /A7 OK/i.test(buffer)) {
+        clearTimeout(timer);
+        finish();
+      }
+      if (/A[1-7] (NO|BAD)/i.test(buffer)) {
+        clearTimeout(timer);
+        finish(new Error('IMAP rejected outbound-copy cleanup.'));
+      }
+    });
+  });
+}
+
+export function organizeOutboundCopies() {
+  const header = 'HEADER X-NBW-Automation-Key';
+  const search = `OR OR OR OR ${header} "outreach:" ${header} "followup:" ${header} "reply:" ${header} "inbound-ack:" ${header} "oneoff:"`;
+  return withImapRetry(() => moveInboxMessagesToSentOnce(search));
+}
+
+async function imapExchangeOnce(input: { search: string; fetchLatest?: boolean; mailbox?: string }) {
   const config = settings();
   return new Promise<{ ids: number[]; raw?: string }>((resolve, reject) => {
     const socket = tls.connect({ host: config.imapHost, port: config.imapPort, servername: config.imapHost, rejectUnauthorized: true });
@@ -367,7 +517,7 @@ async function imapExchangeOnce(input: { search: string; fetchLatest?: boolean }
       }
       if (stage === 'login' && /A1 OK/i.test(buffer)) {
         stage = 'select';
-        socket.write('A2 SELECT INBOX\r\n');
+        socket.write(`A2 SELECT "${escapeImap(input.mailbox || 'INBOX')}"\r\n`);
       }
       if (stage === 'select' && /A2 OK/i.test(buffer)) {
         stage = 'search';
@@ -409,11 +559,11 @@ async function imapExchangeOnce(input: { search: string; fetchLatest?: boolean }
   });
 }
 
-function imapExchange(input: { search: string; fetchLatest?: boolean }) {
+function imapExchange(input: { search: string; fetchLatest?: boolean; mailbox?: string }) {
   return withImapRetry(() => imapExchangeOnce(input));
 }
 
-async function imapFetchAllOnce(search: string, limit = 100, headersOnly = false) {
+async function imapFetchAllOnce(search: string, limit = 100, headersOnly = false, mailbox = 'INBOX') {
   const config = settings();
   return new Promise<Array<{ uid: number; raw: string }>>((resolve, reject) => {
     const socket = tls.connect({ host: config.imapHost, port: config.imapPort, servername: config.imapHost, rejectUnauthorized: true });
@@ -439,7 +589,7 @@ async function imapFetchAllOnce(search: string, limit = 100, headersOnly = false
       }
       if (stage === 'login' && /A1 OK/i.test(buffer)) {
         stage = 'select';
-        socket.write('A2 SELECT INBOX\r\n');
+        socket.write(`A2 SELECT "${escapeImap(mailbox)}"\r\n`);
       }
       if (stage === 'select' && /A2 OK/i.test(buffer)) {
         stage = 'search';
@@ -488,8 +638,8 @@ async function imapFetchAllOnce(search: string, limit = 100, headersOnly = false
   });
 }
 
-function imapFetchAll(search: string, limit = 100, headersOnly = false) {
-  return withImapRetry(() => imapFetchAllOnce(search, limit, headersOnly));
+function imapFetchAll(search: string, limit = 100, headersOnly = false, mailbox = 'INBOX') {
+  return withImapRetry(() => imapFetchAllOnce(search, limit, headersOnly, mailbox));
 }
 
 function parseMessage(raw: string) {
@@ -519,11 +669,13 @@ export async function readStoredProspectRecords() {
 }
 
 export async function readAutomationMessages(markerPrefix = '', limit = 5000, headersOnly = true) {
-  const messages = await imapFetchAll(
-    `HEADER X-NBW-Automation-Key "${escapeImap(markerPrefix)}"`,
-    limit,
-    headersOnly,
-  );
+  const search = `HEADER X-NBW-Automation-Key "${escapeImap(markerPrefix)}"`;
+  const [inboxMessages, sentMessages] = await Promise.all([
+    imapFetchAll(search, limit, headersOnly, 'INBOX'),
+    imapFetchAll(search, limit, headersOnly, 'Sent'),
+  ]);
+  // Prefer the filed Sent copy if a historical Inbox fallback shares a marker.
+  const messages = [...inboxMessages, ...sentMessages];
   return messages.map(message => ({ uid: message.uid, ...parseMessage(message.raw) }));
 }
 
@@ -540,14 +692,23 @@ export async function readInboundMessages(input: { unseenOnly?: boolean; limit?:
 }
 
 export async function readAutomationMarker(marker: string) {
-  const result = await imapExchange({ search: `HEADER X-NBW-Automation-Key "${escapeImap(marker)}"`, fetchLatest: true });
+  const search = `HEADER X-NBW-Automation-Key "${escapeImap(marker)}"`;
+  const [inbox, sent] = await Promise.all([
+    imapExchange({ search, fetchLatest: true, mailbox: 'INBOX' }),
+    imapExchange({ search, fetchLatest: true, mailbox: 'Sent' }),
+  ]);
+  const result = sent.raw ? sent : inbox;
   if (!result.raw) return null;
   return { uid: result.ids.at(-1) as number, ...parseMessage(result.raw) };
 }
 
 export async function hasAutomationMarker(marker: string) {
-  const result = await imapExchange({ search: `HEADER X-NBW-Automation-Key "${escapeImap(marker)}"` });
-  return result.ids.length > 0;
+  const search = `HEADER X-NBW-Automation-Key "${escapeImap(marker)}"`;
+  const [inbox, sent] = await Promise.all([
+    imapExchange({ search, mailbox: 'INBOX' }),
+    imapExchange({ search, mailbox: 'Sent' }),
+  ]);
+  return inbox.ids.length > 0 || sent.ids.length > 0;
 }
 
 async function readLatestFromSearch(email: string, unseenOnly: boolean) {
