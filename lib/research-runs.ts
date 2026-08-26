@@ -61,12 +61,21 @@ async function saveResearchRun(run: ResearchRun) {
 
 export async function readResearchRuns(limit = 50) {
   const messages = await readAutomationMessages(MARKER_PREFIX, limit, false);
-  return messages
+  const decoded = messages
     .flatMap(message => {
       const run = decode(message.body);
       return run ? [{ ...run, recordUid: message.uid }] : [];
-    })
-    .toSorted((a, b) => b.recordUid - a.recordUid);
+    });
+  const latestById = new Map<string, (typeof decoded)[number]>();
+  for (const run of decoded) {
+    const current = latestById.get(run.id);
+    const runTime = Date.parse(run.finishedAt || run.startedAt);
+    const currentTime = Date.parse(current?.finishedAt || current?.startedAt || '');
+    if (!current || runTime > currentTime || (runTime === currentTime && run.state !== 'running')) {
+      latestById.set(run.id, run);
+    }
+  }
+  return [...latestById.values()].toSorted((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt));
 }
 
 export async function latestResearchRun() {

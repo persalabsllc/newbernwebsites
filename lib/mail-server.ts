@@ -154,15 +154,21 @@ async function sendPlainText(to: string, subject: string, body: string, options:
   }
 
   const rawMessage = [...headers, '', body].join('\r\n');
+  // Durable internal state belongs in Sent, not in Kyle's Inbox. Appending it
+  // directly also avoids relying on self-addressed SMTP delivery semantics.
+  if (options.purpose === 'internal' && options.storeInSent && to.toLowerCase() === config.username.toLowerCase()) {
+    await appendSentMessage(rawMessage);
+    return;
+  }
   // The external recipient is the only SMTP envelope recipient. A Sent-folder
   // copy is filed separately over IMAP so tracking never fills the Inbox.
   await deliverRawMessage(config, [to], rawMessage);
-  if (options.storeInSent && to.toLowerCase() !== config.username.toLowerCase()) {
+  if (options.storeInSent) {
     try {
       await appendSentMessage(rawMessage);
     } catch (appendError) {
       // Delivery already succeeded. Preserve the exact Message-ID and marker in
-      // a self-copy only when Sent filing fails so the next cron cannot resend.
+      // a self-copy only when an external delivery cannot be filed in Sent.
       try {
         await deliverRawMessage(config, [config.username], rawMessage);
       } catch (copyError) {
@@ -194,7 +200,7 @@ export async function storeProspectRecord(marker: string, business: string, enco
     config.username,
     `[NBW Prospect] ${business}`,
     `NBW_PROSPECT_V1:${encodedRecord}`,
-    { purpose: 'internal', marker },
+    { purpose: 'internal', marker, storeInSent: true },
   );
 }
 
@@ -204,7 +210,7 @@ export async function recordAutomationEvent(input: { marker: string; subject: st
     config.username,
     `[NBW Automation] ${input.subject}`,
     input.body,
-    { purpose: 'internal', marker: input.marker },
+    { purpose: 'internal', marker: input.marker, storeInSent: true },
   );
 }
 
