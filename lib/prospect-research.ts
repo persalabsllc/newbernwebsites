@@ -1,20 +1,16 @@
 import { createHash } from 'node:crypto';
+import { discoverOverpassCandidates, type DiscoveryAttempt, type OverpassElement } from './overpass-discovery';
 import { getAllProspects, saveManualProspect, type StoredOutreachLead } from './prospect-store';
 import { cleanProspectKey, type AuditFinding } from './prospect-utils';
 
-const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
-const NEW_BERN = { latitude: 35.1085, longitude: -77.0441 };
-const RADIUS_METERS = 120_700;
 const FETCH_TIMEOUT_MS = 8_000;
 const MAX_HTML_BYTES = 750_000;
-
-type OverpassElement = {
-  id: number;
-  tags?: Record<string, string>;
-  lat?: number;
-  lon?: number;
-  center?: { lat?: number; lon?: number };
-};
+// Queue checks and durable run markers happen before/after this function. Keep
+// the inner budget low enough that those bounded IMAP/SMTP operations still fit
+// inside Vercel's 300-second route limit.
+const RESEARCH_BUDGET_MS = 150_000;
+const BATCH_START_RESERVE_MS = 40_000;
+const RECORD_SAVE_RESERVE_MS = 20_000;
 
 export type ProspectResearchOptions = {
   limit?: number;
@@ -34,6 +30,9 @@ export type ProspectResearchResult = {
   nextOffset: number;
   totalProspects: number;
   prospects: Array<{ key: string; business: string; location?: string; category?: string }>;
+  discoveryAttempts: DiscoveryAttempt[];
+  failedDiscoveryShards: string[];
+  deadlineReached: boolean;
 };
 
 type CandidateResult =
@@ -252,28 +251,8 @@ async function candidateToLead(element: OverpassElement): Promise<CandidateResul
   } };
 }
 
-async function overpassCandidates() {
-  const around = `(around:${RADIUS_METERS},${NEW_BERN.latitude},${NEW_BERN.longitude})`;
-  const query = `[out:json][timeout:45];(
-    nwr${around}["name"]["website"]["craft"];
-    nwr${around}["name"]["website"]["office"];
-    nwr${around}["name"]["website"]["shop"];
-    nwr${around}["name"]["website"]["amenity"~"restaurant|cafe|bar|dentist|doctors|clinic|veterinary|car_repair|events_venue"];
-    nwr${around}["name"]["website"]["tourism"~"hotel|motel|guest_house|attraction"];
-    nwr${around}["name"]["website"]["leisure"~"marina|fitness_centre|sports_centre"];
-  );out tags center 900;`;
-  const response = await fetch(OVERPASS_URL, {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded', 'user-agent': 'NewBernWebsitesBot/1.0 (+https://www.newbernwebsites.com/)' },
-    body: new URLSearchParams({ data: query }),
-    signal: AbortSignal.timeout(55_000),
-  });
-  if (!response.ok) throw new Error(`Business discovery provider returned ${response.status}.`);
-  const data = await response.json() as { elements?: OverpassElement[] };
-  return data.elements || [];
-}
-
 export async function researchProspects(options: number | ProspectResearchOptions = {}): Promise<ProspectResearchResult> {
+  const researchDeadline = Date.now() + RESEARCH_BUDGET_MS;
   const normalized = typeof options === 'number' ? { limit: options } : options;
   const limit = Math.max(1, Math.min(60, normalized.limit || 12));
   const maxChecked = Math.max(limit, Math.min(180, normalized.maxChecked || 60));
@@ -283,7 +262,8 @@ export async function researchProspects(options: number | ProspectResearchOption
   const existingHosts = new Set(existing.map(lead => {
     try { return new URL(lead.sourceUrl).hostname.replace(/^www\./, ''); } catch { return ''; }
   }));
-  const elements = await overpassCandidates();
+  const discovery = await discoverOverpassCandidates();
+  const elements = discovery.elements;
   const orderedCandidates = elements
     .filter(element => {
       const website = normalizeWebsite(element.tags?.website || element.tags?.['contact:website']);
@@ -299,9 +279,14 @@ export async function researchProspects(options: number | ProspectResearchOption
 
   const saved: StoredOutreachLead[] = [];
   let checked = 0;
+  let deadlineReached = false;
   const rejectionCounts: Record<string, number> = {};
   const reject = (reason: string) => { rejectionCounts[reason] = (rejectionCounts[reason] || 0) + 1; };
   for (let index = 0; index < candidates.length && saved.length < limit && checked < maxChecked; index += 6) {
+    if (Date.now() >= researchDeadline - BATCH_START_RESERVE_MS) {
+      deadlineReached = true;
+      break;
+    }
     const batch = candidates.slice(index, Math.min(index + 6, index + (maxChecked - checked)));
     const results = await Promise.all(batch.map(async candidate => {
       try { return await candidateToLead(candidate); } catch { return { lead: null, reason: 'fetch-error' } as CandidateResult; }
@@ -314,13 +299,27 @@ export async function researchProspects(options: number | ProspectResearchOption
         reject('duplicate-email');
         return false;
       }
+      const host = new URL(lead.sourceUrl).hostname.replace(/^www\./, '');
+      if (existingHosts.has(host)) {
+        reject('duplicate-website');
+        return false;
+      }
       existingEmails.add(email);
+      existingHosts.add(host);
       return true;
     });
     // Private Email is reliable with bounded sequential SMTP writes; opening a
     // dozen simultaneous authenticated connections can trigger provider limits.
-    for (const lead of unique) await saveManualProspect(lead);
-    saved.push(...unique);
+    for (const lead of unique) {
+      if (saved.length >= limit) break;
+      if (Date.now() >= researchDeadline - RECORD_SAVE_RESERVE_MS) {
+        deadlineReached = true;
+        break;
+      }
+      await saveManualProspect(lead);
+      saved.push(lead);
+    }
+    if (deadlineReached) break;
   }
   return {
     radiusMiles: 75,
@@ -334,5 +333,8 @@ export async function researchProspects(options: number | ProspectResearchOption
     nextOffset: orderedCandidates.length ? (startOffset + checked) % orderedCandidates.length : 0,
     totalProspects: existing.length + saved.length,
     prospects: saved.map(lead => ({ key: lead.key, business: lead.business, location: lead.location, category: lead.category })),
+    discoveryAttempts: discovery.attempts,
+    failedDiscoveryShards: discovery.failedShards,
+    deadlineReached,
   };
 }

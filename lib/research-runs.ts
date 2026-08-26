@@ -39,7 +39,18 @@ async function saveResearchRun(run: ResearchRun) {
   // prospect-name list keeps internal status messages comfortably below mail
   // provider size limits while the actual prospect records remain separate.
   const durableRun = run.result
-    ? { ...run, result: { ...run.result, prospects: [] } }
+    ? {
+      ...run,
+      result: {
+        ...run.result,
+        prospects: [],
+        discoveryAttemptCount: run.result.discoveryAttempts.length,
+        discoveryAttempts: run.result.discoveryAttempts.slice(-3).map(attempt => ({
+          ...attempt,
+          error: attempt.error?.slice(0, 80),
+        })),
+      },
+    }
     : run;
   await recordAutomationEvent({
     marker: `${MARKER_PREFIX}${run.id}:${run.state}`,

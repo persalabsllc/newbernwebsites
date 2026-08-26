@@ -41,11 +41,19 @@ export async function GET(request: Request) {
       }
       const snapshot = await loadOutreachSnapshot();
       const replies = await processReplies(snapshot);
-      const followUps = await sendDueFollowUps(snapshot, replies.suppressedLeadKeys);
       const firstTouches = await sendNextFirstTouches(snapshot, replies.suppressedLeadKeys);
-      return { organizedCopies, replyActivity: replies.activity, followUps, firstTouches };
+      const followUps = await sendDueFollowUps(snapshot, replies.suppressedLeadKeys);
+      return { prospectCount: snapshot.prospects.length, organizedCopies, replyActivity: replies.activity, followUps, firstTouches };
     });
     if (!run.acquired) return NextResponse.json({ ok: true, skipped: 'Outreach run already in progress.' });
+    console.info(JSON.stringify({
+      event: 'outreach-autopilot',
+      prospectCount: run.result.prospectCount,
+      firstTouches: run.result.firstTouches.length,
+      followUps: run.result.followUps.length,
+      replyActivity: run.result.replyActivity.length,
+      organizedCopies: run.result.organizedCopies,
+    }));
     return NextResponse.json({ ok: true, ...run.result, limits: getOutreachLimits() });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Autopilot run failed.';

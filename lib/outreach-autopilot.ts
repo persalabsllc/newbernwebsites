@@ -95,6 +95,18 @@ export async function loadOutreachSnapshot(input: { includeAllInbound?: boolean 
   return { prospects, automationMessages, inboundMessages, unreadMessages };
 }
 
+export async function firstTouchQueueStatus() {
+  const [prospects, automationMessages] = await Promise.all([
+    getAllProspects(),
+    readAutomationMessages('', 5000),
+  ]);
+  const markers = markerSet(automationMessages);
+  const pending = prospects.filter(lead =>
+    !markers.has(`outreach:${lead.key}`) && !markers.has(`suppressed:${lead.key}`),
+  ).length;
+  return { prospects: prospects.length, pending };
+}
+
 function messageMap(messages: AutomationMessage[], prefix: string) {
   return new Map(
     messages.flatMap(message => message.marker?.startsWith(prefix) ? [[message.marker, message] as const] : []),

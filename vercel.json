@@ -11,7 +11,7 @@
     },
     {
       "path": "/api/cron/research",
-      "schedule": "5 11-16 * * 1-5"
+      "schedule": "5 11-23 * * 1-5"
     }
   ]
 }
