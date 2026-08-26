@@ -663,9 +663,10 @@ function parseMessage(raw: string) {
 
 export async function readStoredProspectRecords() {
   // Prospect records are append-only and can exceed the generic 100-message
-  // safety default during an active outreach sprint.
-  const messages = await imapFetchAll('SUBJECT "[NBW Prospect]"', 5000);
-  return messages.map(message => ({ uid: message.uid, ...parseMessage(message.raw) }));
+  // safety default during an active outreach sprint. Search the durable marker
+  // in both Inbox and Sent: some mail hosts file self-addressed messages in Sent
+  // instead of Inbox, which made successful research invisible to later runs.
+  return readAutomationMessages('prospect-record:', 5000, false);
 }
 
 export async function readAutomationMessages(markerPrefix = '', limit = 5000, headersOnly = true) {
