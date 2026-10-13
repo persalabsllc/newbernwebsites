@@ -120,7 +120,7 @@ export default function ProspectPipeline({ user }: { user: User }) {
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Could not add prospect.');
       form.reset();
-      setAddStatus('Prospect added. The first email is drafted and queued for a future weekday run.');
+      setAddStatus('Prospect added with an email draft. Automatic sending is off; review and send manually when ready.');
       await load();
     } catch (error) {
       setAddStatus(error instanceof Error ? error.message : 'Could not add prospect.');
@@ -193,7 +193,7 @@ export default function ProspectPipeline({ user }: { user: User }) {
   return <section className="prospect-pipeline">
     <div className="admin-module">
       <div className="pipeline-head">
-        <div><p className="crm-kicker">MANUAL INTAKE</p><h2>Add a prospect</h2><p>Add any suitable business within 75 miles of New Bern to the automated queue. Its first-touch draft is created immediately and released within the active weekday limit.</p></div>
+        <div><p className="crm-kicker">MANUAL INTAKE</p><h2>Add a prospect</h2><p>Add any suitable business within 75 miles of New Bern to the pipeline. Its first-touch draft is created immediately. Automatic sending is off.</p></div>
       </div>
       <form className="prospect-add-form" onSubmit={addProspect}>
         <label><span>Business name</span><input name="business" required maxLength={120} /></label>
@@ -201,7 +201,7 @@ export default function ProspectPipeline({ user }: { user: User }) {
         <label><span>Phone number</span><input name="phone" type="tel" /></label>
         <label><span>Contact person</span><input name="contactPerson" /></label>
         <label><span>Email</span><input name="email" type="email" required /></label>
-        <button className="button primary" disabled={adding}>{adding ? 'Adding…' : 'Add to automated queue'}</button>
+        <button className="button primary" disabled={adding}>{adding ? 'Adding…' : 'Add to prospect pipeline'}</button>
       </form>
       {addStatus && <p className={`form-status ${/could not|already|required/i.test(addStatus) ? 'error' : 'sent'}`}>{addStatus}</p>}
     </div>
@@ -210,7 +210,7 @@ export default function ProspectPipeline({ user }: { user: User }) {
       <div>
         <p className="crm-kicker">OUTBOUND SALES</p>
         <h2>Prospect Pipeline</h2>
-        <p>Verified businesses across New Bern and the surrounding 75-mile Eastern North Carolina market. The weekday allowance ramps 15 → 25 → 35 → 50, sent in five-message hourly batches.</p>
+        <p>Verified businesses across New Bern and the surrounding 75-mile Eastern North Carolina market. Research is enabled; automatic prospect emails and follow-ups are off.</p>
       </div>
       <div className="pipeline-actions"><button onClick={() => void runResearch()} disabled={researching}>{researching ? 'Researching…' : 'Run 75-mile research'}</button><button onClick={() => void load()} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh status'}</button></div>
     </div>
@@ -257,7 +257,7 @@ export default function ProspectPipeline({ user }: { user: User }) {
           <td><p>{prospect.observation}</p></td>
           <td>
             <span className={`pipeline-pill ${prospect.status.toLowerCase().replace(/\s+/g, '-')}`}>{prospect.status}</span>
-            <small>{prospect.sent ? prospect.outreachStage : `Queue #${prospect.queuePosition} · weekday batch ${prospect.scheduledBatch}`}</small>
+            <small>{prospect.sent ? prospect.outreachStage : `Pipeline #${prospect.queuePosition} · automatic sending off`}</small>
           </td>
           <td><p>{prospect.replyStage}</p></td>
           <td><p>{prospect.nextAction}</p><small>{prospect.paymentStage}</small></td>

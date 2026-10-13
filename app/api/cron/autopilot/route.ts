@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { AUTOMATIC_OUTREACH_ENABLED } from '../../../../lib/automation-policy';
 import { cronAuthorized } from '../../../../lib/cron-auth';
 import {
   getOutreachLimits,
@@ -16,6 +17,9 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 export async function GET(request: Request) {
+  if (!AUTOMATIC_OUTREACH_ENABLED) {
+    return NextResponse.json({ ok: true, skipped: true, reason: 'Automatic outreach is disabled.' });
+  }
   if (!process.env.CRON_SECRET) {
     return NextResponse.json({ ok: false, error: 'Autopilot is safely paused until CRON_SECRET is configured.' }, { status: 503 });
   }

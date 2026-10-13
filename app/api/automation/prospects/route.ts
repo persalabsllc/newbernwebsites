@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { AUTOMATIC_OUTREACH_ENABLED } from '../../../../lib/automation-policy';
 import { requireFirebaseUser } from '../../../../lib/firebase-server-auth';
 import { readAutomationMessages, readInboundMessages } from '../../../../lib/mail-server';
 import { currentFirstTouchLimit } from '../../../../lib/outreach-autopilot';
@@ -57,6 +58,10 @@ function prospectState(
     nextAction = 'No more automated outreach';
   }
 
+  if (!AUTOMATIC_OUTREACH_ENABLED && !finalFollowUp) {
+    nextAction = 'Automatic outreach is off. Review and contact this prospect manually.';
+  }
+
   if (inbound) {
     if (inbound.contentType !== 'text/plain') {
       status = 'Needs Kyle';
@@ -81,6 +86,11 @@ function prospectState(
         replyStage = action.reason;
         needsKyle = true;
         nextAction = 'Kyle must review the reply';
+      } else if (!markers.has(action.marker)) {
+        status = 'Needs Kyle';
+        replyStage = 'Reply received; no automatic response sent';
+        needsKyle = true;
+        nextAction = 'Kyle must review and respond manually';
       } else if (action.alertOwner) {
         status = 'Meeting requested';
         replyStage = 'Automation requested their phone number and two time windows';
@@ -153,13 +163,13 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       ok: true,
-      dailyLimit: firstTouchLimit,
+      dailyLimit: AUTOMATIC_OUTREACH_ENABLED ? firstTouchLimit : 0,
       weekdayOnly: true,
       prospects,
       background: {
-        schedule: 'Five first touches per hourly run on weekdays until the daily limit is reached',
-        firstTouchLimit,
-        replyChecks: 'Replies are checked hourly on weekdays. Follow-ups run on days 4, 9, and 14.',
+        schedule: 'Automatic outreach is off. Weekday prospect research remains scheduled.',
+        firstTouchLimit: AUTOMATIC_OUTREACH_ENABLED ? firstTouchLimit : 0,
+        replyChecks: 'Automatic replies and follow-ups are off. Review incoming messages manually.',
       },
     });
   } catch (error) {

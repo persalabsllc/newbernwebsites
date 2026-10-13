@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { AUTOMATIC_OUTREACH_ENABLED } from '../../../../lib/automation-policy';
 import { requireFirebaseUser } from '../../../../lib/firebase-server-auth';
 import { readInboxStatus, sendOneOffEmail, sendProspectEmail, sendSelfTest, verifySmtp } from '../../../../lib/mail-server';
 import { getAllProspects } from '../../../../lib/prospect-store';
@@ -24,10 +25,10 @@ export async function POST(request: Request) {
         email: user.email,
         inbox,
         outreachEnabled: true,
-        mode: process.env.CRON_SECRET ? 'guarded-autopilot' : 'paused',
-        autopilotReady: Boolean(process.env.CRON_SECRET),
+        mode: AUTOMATIC_OUTREACH_ENABLED && process.env.CRON_SECRET ? 'guarded-autopilot' : 'paused',
+        autopilotReady: AUTOMATIC_OUTREACH_ENABLED && Boolean(process.env.CRON_SECRET),
         queued: prospects.length,
-        dailyLimit: currentFirstTouchLimit(),
+        dailyLimit: AUTOMATIC_OUTREACH_ENABLED ? currentFirstTouchLimit() : 0,
       });
     }
 
