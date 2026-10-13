@@ -4,6 +4,7 @@ import {
   readInboundMessages,
   recordAutomationEvent,
   sendAutomatedReply,
+  sendOwnerAlert,
 } from './mail-server';
 
 const HOUR_MS = 3_600_000;
@@ -110,12 +111,15 @@ function followUpCopy(lead: InboundLead, step: 1 | 2 | 3) {
   ].join('\r\n');
 }
 
-export async function enrollInboundLead(lead: InboundLead) {
+const inboundMail = { hasAutomationMarker, recordAutomationEvent, sendAutomatedReply, sendOwnerAlert };
+
+export async function enrollInboundLead(lead: InboundLead, mail = inboundMail) {
   const recordMarker = `inbound-record:${lead.id}`;
   const ackMarker = `inbound-ack:${lead.id}`;
+  const ownerMarker = `inbound-owner:${lead.id}`;
 
-  if (!await hasAutomationMarker(recordMarker)) {
-    await recordAutomationEvent({
+  if (!await mail.hasAutomationMarker(recordMarker)) {
+    await mail.recordAutomationEvent({
       marker: recordMarker,
       subject: `New website lead: ${lead.business}`,
       body: [
@@ -133,8 +137,35 @@ export async function enrollInboundLead(lead: InboundLead) {
     });
   }
 
-  if (!await hasAutomationMarker(ackMarker)) {
-    await sendAutomatedReply({
+  if (!await mail.hasAutomationMarker(ownerMarker)) {
+    const appointment = lead.package === 'Schedule a 15-minute call';
+    await mail.sendOwnerAlert({
+      subject: `${appointment ? 'New appointment request' : 'New website inquiry'}: ${lead.business}`.replace(/[\r\n]+/g, ' ').slice(0, 120),
+      body: [
+        appointment ? 'Someone requested a website conversation.' : 'Someone submitted a website inquiry.',
+        '',
+        `Name: ${lead.name}`,
+        `Business: ${lead.business}`,
+        `Email: ${lead.email}`,
+        `Phone: ${lead.phone || 'Not provided'}`,
+        `Interest: ${lead.package}`,
+        `Source: ${lead.campaign === 'captain97' ? 'Captain 97.1' : 'NewBernWebsites.com'}`,
+        `Received: ${new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/New_York' }).format(new Date(lead.createdAt))} Eastern`,
+        '',
+        appointment ? 'Requested time and notes:' : 'Project details:',
+        lead.project || 'Not provided',
+        '',
+        'Reply to this email to respond directly to the customer.',
+        'View the request in your admin portal: https://www.newbernwebsites.com/admin',
+      ].join('\r\n'),
+      marker: ownerMarker,
+      replyTo: lead.email,
+    });
+    console.info(JSON.stringify({ event: 'inbound-owner-notification-accepted', submissionId: lead.id }));
+  }
+
+  if (!await mail.hasAutomationMarker(ackMarker)) {
+    await mail.sendAutomatedReply({
       to: lead.email,
       subject: `We received your ${lead.business} website request`,
       body: acknowledgementCopy(lead),

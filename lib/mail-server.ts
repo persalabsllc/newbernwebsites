@@ -102,13 +102,14 @@ function dotStuff(value: string) {
   return value.replace(/^\./gm, '..');
 }
 
-type SendPurpose = 'self-test' | 'outreach' | 'reply' | 'internal';
+type SendPurpose = 'self-test' | 'outreach' | 'reply' | 'internal' | 'notification';
 
 type SendOptions = {
   purpose: SendPurpose;
   marker?: string;
   storeInSent?: boolean;
   replyToMessageId?: string;
+  replyTo?: string;
 };
 
 async function deliverRawMessage(config: MailSettings, recipients: string[], rawMessage: string) {
@@ -128,13 +129,14 @@ async function deliverRawMessage(config: MailSettings, recipients: string[], raw
 async function sendPlainText(to: string, subject: string, body: string, options: SendOptions) {
   const config = settings();
   if (!validMailbox(to)) throw new Error('A valid recipient email is required.');
+  if (options.replyTo && !validMailbox(options.replyTo)) throw new Error('A valid reply-to email is required.');
   if (!subject.trim() || subject.length > 120) throw new Error('Subject must be between 1 and 120 characters.');
   if (!body.trim() || body.length > 5000) throw new Error('Message must be between 1 and 5,000 characters.');
 
   const messageId = `<${options.purpose}-${Date.now()}-${Math.random().toString(36).slice(2)}@newbernwebsites.com>`;
   const headers = [
     `From: New Bern Websites <${cleanHeader(config.username)}>`,
-    `Reply-To: ${cleanHeader(config.username)}`,
+    `Reply-To: ${cleanHeader(options.replyTo || config.username)}`,
     `To: ${cleanHeader(to)}`,
     `Date: ${new Date().toUTCString()}`,
     `Message-ID: ${messageId}`,
@@ -305,11 +307,15 @@ export async function sendAutomatedReply(input: {
   });
 }
 
-export async function sendOwnerAlert(input: { subject: string; body: string; marker: string }) {
+export async function sendOwnerAlert(input: { subject: string; body: string; marker: string; replyTo?: string }) {
   const config = settings();
   await sendPlainText(config.username, input.subject, input.body, {
-    purpose: 'internal',
+    // An owner notification must be delivered to the Inbox, even though both
+    // envelope addresses belong to Kyle. Internal records only append to Sent.
+    purpose: 'notification',
     marker: input.marker,
+    storeInSent: true,
+    replyTo: input.replyTo,
   });
 }
 

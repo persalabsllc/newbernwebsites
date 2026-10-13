@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useMemo, useRef, useState } from 'react';
 
 type ScheduleFormProps = {
   defaultBusiness?: string;
@@ -31,11 +31,13 @@ export default function ScheduleForm({ defaultBusiness = '', defaultEmail = '', 
   const days = useMemo(availableDays, []);
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [message, setMessage] = useState('');
+  const submissionId = useRef<string | null>(null);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
     const data = new FormData(form);
+    submissionId.current ||= crypto.randomUUID();
     setStatus('sending');
     setMessage('');
     try {
@@ -44,7 +46,7 @@ export default function ScheduleForm({ defaultBusiness = '', defaultEmail = '', 
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          submissionId: crypto.randomUUID(),
+          submissionId: submissionId.current,
           websiteFax: String(data.get('websiteFax') || ''),
           name: String(data.get('name') || '').trim(),
           business: String(data.get('business') || '').trim(),
@@ -59,6 +61,7 @@ export default function ScheduleForm({ defaultBusiness = '', defaultEmail = '', 
       setStatus('sent');
       setMessage('Your requested time is in. Check your inbox for Kyle’s confirmation.');
       form.reset();
+      submissionId.current = null;
     } catch (error) {
       console.error('Appointment request failed', error);
       setStatus('error');

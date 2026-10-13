@@ -89,6 +89,7 @@ const packages = [
     name: 'Turnkey Website',
     price: '$2,500',
     deposit: '$1,250 to start',
+    checkout: '/pay/turnkey-deposit',
     balance: '$1,250 before launch',
     desc: 'A complete business website from concept to launch.',
     icon: 'layout' as IconName,
@@ -105,6 +106,7 @@ const packages = [
     name: 'Website + Professional Media',
     price: '$3,500',
     deposit: '$1,750 to start',
+    checkout: '/pay/media-deposit',
     balance: '$1,750 before launch',
     featured: true,
     desc: 'Everything in Turnkey, plus we come to your business and capture it properly.',
@@ -212,7 +214,8 @@ export default function Home() {
                 <strong className="monthly">{item.deposit}</strong>
                 <span className="balance-copy">{item.balance}</span>
                 <ul>{item.items.map(listItem => <li key={listItem}><Icon name="check" />{listItem}</li>)}</ul>
-                <a className="button package-button" href={`/schedule?source=${item.featured ? 'media-package' : 'turnkey-package'}`}>Discuss This Package <span aria-hidden="true">→</span></a>
+                <a className="button package-button" href={item.checkout}>Start This Package <span aria-hidden="true">→</span></a>
+                <a className="package-conversation" href={`/schedule?source=${item.featured ? 'media-package' : 'turnkey-package'}`}>Questions? Schedule a Conversation</a>
               </article>
             ))}
           </div>

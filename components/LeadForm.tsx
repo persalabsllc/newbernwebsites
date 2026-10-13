@@ -1,15 +1,17 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useRef, useState } from 'react';
 
 export default function LeadForm({ campaign = 'website' }: { campaign?: 'website' | 'captain97' }) {
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [message, setMessage] = useState('');
+  const submissionId = useRef<string | null>(null);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
     const data = new FormData(form);
+    submissionId.current ||= crypto.randomUUID();
 
     setStatus('sending');
     setMessage('');
@@ -19,7 +21,7 @@ export default function LeadForm({ campaign = 'website' }: { campaign?: 'website
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          submissionId: crypto.randomUUID(),
+          submissionId: submissionId.current,
           websiteFax: String(data.get('websiteFax') || ''),
           name: String(data.get('name') || '').trim(),
           business: String(data.get('business') || '').trim(),
@@ -32,6 +34,7 @@ export default function LeadForm({ campaign = 'website' }: { campaign?: 'website
       });
       if (!response.ok) throw new Error('Lead intake rejected the submission.');
       form.reset();
+      submissionId.current = null;
       setStatus('sent');
       setMessage('Thank you — your request is in. Check your inbox for a message from Kyle@NewBernWebsites.com.');
     } catch (error) {
